@@ -38,7 +38,7 @@ def init_dirs():
     make_dir(test_path)
     for label in labels:
         make_dir(train_path+label)
-        # make_dir(test_path+label) # Not needed if sliding window
+        make_dir(test_path+label) # Comment out if sliding window
 
 # Preprocesses raw data into train data
 def setup_train_data(raw_path,label):
