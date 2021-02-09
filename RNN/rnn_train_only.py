@@ -77,16 +77,18 @@ def main():
     trainX, trainy = load_train_dataset()       # Load train data 
     
     # Comment this out for retraining
-    model = train_model(trainX, trainy)         # Train model 
-    model.save(f'trained_{apnea_type}_model', overwrite=True)   # Save model
+    # model = train_model(trainX, trainy)         # Train model 
+    # model.save(f'trained_{apnea_type}_model', overwrite=True)   # Save model
  
     # Comment this out unless retrain 
-    # retrain_model(trainX, trainy)
+    retrain_model(trainX, trainy)
 
 # Retrain 
 def retrain_model(trainX, trainy):
-    model = keras.models.load_model(f"trained_{apnea_type}_model")
-    model.fit(trainX, trainy, epochs=20, batch_size=16)
+    model_name = f"trained_{apnea_type}_model"
+    print(f"Retraining model....{model_name}")
+    model = keras.models.load_model(model_name)
+    model.fit(trainX, trainy, epochs=epochs, batch_size=batch_size)
     model.save(f'trained_{apnea_type}_model', overwrite=True)
 
 if __name__ == "__main__":
