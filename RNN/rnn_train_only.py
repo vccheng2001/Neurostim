@@ -22,10 +22,10 @@ import tensorflow.keras as keras
 from matplotlib import pyplot
 
 # parameters
-(program, apnea_type, timesteps) = sys.argv
+(program, apnea_type, timesteps, epochs, batch_size) = sys.argv
+timesteps, epochs, batch_size = int(timesteps), int(epochs), int(batch_size)
 labels = {"positive/":1, "negative/":0}
 train_group = f"train_{apnea_type}/"
-epochs, batch_size = 10, 64
 
 # fit and evaluate rnn-lstm model
 def train_model(trainX, trainy):
@@ -75,15 +75,19 @@ def load_files_train(label, trainX, trainy):
 
 def main():
     trainX, trainy = load_train_dataset()       # Load train data 
+    
+    # Comment this out for retraining
     model = train_model(trainX, trainy)         # Train model 
     model.save(f'trained_{apnea_type}_model', overwrite=True)   # Save model
-    # Only uncomment for retraining
+ 
+    # Comment this out unless retrain 
     # retrain_model(trainX, trainy)
 
 # Retrain 
-# def retrain_model(trainX, trainy):
-#     model = keras.models.load_model(f"trained_{apnea_type}_model")
-#     model.fit(trainX, trainy, epochs=5, batch_size=batch_size) 
+def retrain_model(trainX, trainy):
+    model = keras.models.load_model(f"trained_{apnea_type}_model")
+    model.fit(trainX, trainy, epochs=20, batch_size=16)
+    model.save(f'trained_{apnea_type}_model', overwrite=True)
 
 if __name__ == "__main__":
     main()
