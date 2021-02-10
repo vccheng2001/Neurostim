@@ -36,11 +36,21 @@ def main():
     model = keras.models.load_model(f"trained_{apnea_type}_model")
     # load input test vector 
     testX, actual = load_test_dataset()
-    # predictions based on trained model 
+
+    # Accuracy
+    testy = to_categorical(actual)
+    print_accuracy(testX, testy, model, batch_size)
+
     predictions = model.predict(testX, batch_size)
     # save predictions to file 
     output_predictions(predictions, np.asarray(actual))
    
+# Summarizes accuracy by comparing predicted with actual labels 
+def print_accuracy(testX, testy, model, batch_size):
+    _, accuracy = model.evaluate(testX, testy, batch_size)
+    score = accuracy * 100.0
+    print('>%.3f' % (score)) 
+
 # saves predictions 
 def output_predictions(predictions,actual):
     # number of test files in test dir
@@ -68,34 +78,36 @@ def load_files_test(actual, label, X):
 
     #Use this if subdirs in positive/negative dirs 
     
-    # path=test_path+label + "*"
-    # dirs = glob.glob(path)
-    # for d in dirs:
-    #     files = os.listdir(d)
-    #     for file_name in files:
-    #         file_path = f"{d}/{file_name}"
-    #         # print('Currently processing test file:', file_name)
-    #         arr = np.loadtxt(file_path,delimiter="\n", dtype=np.float64)
-    #         if X.shape[1] == arr.shape[0]: # make sure dims match
-    #             # Add as row to x matrix
-    #             X = np.vstack((X, arr))
-    #             # Build actual values (positive/negative)
-    #             actual.append(labels[label])
-    # return X
+    path=test_path+label + "*"
+    dirs = glob.glob(path)
+    for d in dirs:
+        files = os.listdir(d)
+        for file_name in files:
+            file_path = f"{d}/{file_name}"
 
-    # Use this if files directly in positive/negative dirs
-    path=test_path+label
-    files = os.listdir(path)
-    for file_name in files:
-        file_path = path+file_name
-        # print('Currently processing test file:', file_name)
-        arr = np.loadtxt(file_path,delimiter="\n", dtype=np.float64)
-        if X.shape[1] == arr.shape[0]: # make sure dims match
-            # Add as row to x matrix
-            X = np.vstack((X, arr))
-            # Build actual values (positive/negative)
-            actual.append(labels[label])
+            arr = np.loadtxt(file_path,delimiter="\n", dtype=np.float64)
+            if X.shape[1] == arr.shape[0]: # make sure dims match
+                print(f'Currently processing test file {file_name}, {labels[label]}')
+                # Add as row to x matrix
+                X = np.vstack((X, arr))
+                print(X.shape)
+                # Build actual values (positive/negative)
+                actual.append(labels[label])
     return X
+
+    # # Use this if files directly in positive/negative dirs
+    # path=test_path+label
+    # files = os.listdir(path)
+    # for file_name in files:
+    #     file_path = path+file_name
+    #     # print('Currently processing test file:', file_name)
+    #     arr = np.loadtxt(file_path,delimiter="\n", dtype=np.float64)
+    #     if X.shape[1] == arr.shape[0]: # make sure dims match
+    #         # Add as row to x matrix
+    #         X = np.vstack((X, arr))
+    #         # Build actual values (positive/negative)
+    #         actual.append(labels[label])
+    # return X
 
 
 # load input test vector as matrix 
