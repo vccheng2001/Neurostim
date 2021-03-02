@@ -1,0 +1,10 @@
+*.txt
+raw_all*/
+test_all*/
+raw_osa*/
+raw_osahs*/
+test_osa*/
+test_osahs*/
+train_all*/
+train_osa*/
+trained*

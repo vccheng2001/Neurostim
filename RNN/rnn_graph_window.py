@@ -9,7 +9,7 @@ from matplotlib import pyplot as plt
 def graph():
     pred_path = "predictions_window/" # predicted flags on 3rd col 
     actual_path = f"test_{apnea_type}/" # actual flags
-    images_path = "images5/"
+    images_path = "images/"
     make_dir(images_path)
     for i in range(1,10):
         try:
