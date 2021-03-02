@@ -29,6 +29,8 @@ DATA = "../mit/"
 timesteps, epochs, batch_size = int(timesteps), int(epochs), int(batch_size)
 labels = {"positive/":1, "negative/":0}
 train_group = f"{DATA}TRAIN/train_{apnea_type}/"
+pred_path = f"{DATA}PREDICTIONS/"
+model_path = f"{DATA}MODELS/"
 
 # fit and evaluate rnn-lstm model
 def build_model(trainX, trainy):
@@ -104,11 +106,11 @@ def main():
     # Comment this out unless retrain 
     # model = retrain_model(trainX, trainy)
 # 
-    model.save(f'trained_{apnea_type}_model', overwrite=True)   # Save model 
+    model.save(f'{model_path}trained_{apnea_type}_model', overwrite=True)   # Save model 
 
 # Retrain 
 def retrain_model(trainX, trainy):
-    model_name = f"trained_{apnea_type}_model"
+    model_name = f"{model_path}trained_{apnea_type}_model"
     print(f"Retraining model....{model_name}")
     model = keras.models.load_model(model_name)
     model.fit(trainX, trainy, epochs=epochs, batch_size=batch_size)

@@ -28,6 +28,8 @@ DATA = "../mit/"
 
 (program, apnea_type, timesteps, threshold) = sys.argv
 test_path = f"{DATA}TEST/test_{apnea_type}/"
+pred_path = f"{DATA}PREDICTIONS/"
+model_path = f"{DATA}MODELS/"
 
 batch_size = 64
 labels = {"positive/":1, "negative/":0}
@@ -36,7 +38,7 @@ labels = {"positive/":1, "negative/":0}
 # tests on positive/negative sequences in test files
 def main():
     # load saved model 
-    model = keras.models.load_model(f"trained_{apnea_type}_model")
+    model = keras.models.load_model(f"{model_path}trained_{apnea_type}_model")
     # load input test vector 
     testX, actual = load_test_dataset()
 
@@ -73,7 +75,7 @@ def output_predictions(predictions,actual):
     predictions = np.hstack((predictions, actual))
 
     # save predictions
-    np.savetxt(f'predictions_{apnea_type}.txt', predictions, delimiter=' ',fmt='%10f',header="Negative,Positive,Prediction,Actual")
+    np.savetxt(f'{pred_path}predictions_{apnea_type}.txt', predictions, delimiter=' ',fmt='%10f',header="Negative,Positive,Prediction,Actual")
     print(predictions)
 
 # Create test X matrix, actual values
