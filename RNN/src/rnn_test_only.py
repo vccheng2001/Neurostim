@@ -6,7 +6,7 @@ test directory using the pre-trained model.
 ** must train first 
 
 params: <apnea_type>, <timesteps>, <threshold>
-Example: python3 rnn_train_and_test.py osa 160 0.9
+Example: python3 rnn_test_only.py osa 160 0.9
 '''
 import glob
 import os, sys
@@ -24,8 +24,11 @@ from tensorflow.keras.utils import to_categorical
 from matplotlib import pyplot
 
 # parameters 
+DATA = "../mit/" 
+
 (program, apnea_type, timesteps, threshold) = sys.argv
-test_path = "test_" + apnea_type + '/'
+test_path = f"{DATA}TEST/test_{apnea_type}/"
+
 batch_size = 64
 labels = {"positive/":1, "negative/":0}
 
