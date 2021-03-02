@@ -44,10 +44,14 @@ def init_dirs():
 def setup_train_data(raw_path,label):
     rootdir = raw_path + label + "*"
     dirs = glob.glob(rootdir)
+
     i = 0
     for d in dirs:
         files = os.listdir(d)
-        # Read each file 
+
+    # dirs = raw_path + label
+    # files = os.listdir(dirs) 
+    # Read each file 
         for file_name in files:
             file_path = f"{d}/{file_name}"
             # Input raw file

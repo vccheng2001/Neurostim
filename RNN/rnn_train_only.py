@@ -12,6 +12,8 @@ import os, sys
 import numpy as np
 from numpy import mean, std, dstack 
 from pandas import read_csv
+from sklearn.model_selection import GridSearchCV
+from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
 
 # Keras LSTM model 
 from tensorflow.keras.models import Sequential
@@ -28,7 +30,9 @@ labels = {"positive/":1, "negative/":0}
 train_group = f"train_{apnea_type}/"
 
 # fit and evaluate rnn-lstm model
-def train_model(trainX, trainy):
+def build_model():
+    trainX, trainy = load_train_dataset()       # Load train data 
+
     n_timesteps, n_features, n_outputs = trainX.shape[1], trainX.shape[2], trainy.shape[1]
     # Add one layer at a time 
     model = Sequential()
@@ -43,7 +47,7 @@ def train_model(trainX, trainy):
     # Binary 0-1 loss, use SGD 
     model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
     # fit network
-    model.fit(trainX, trainy, epochs=epochs, batch_size=batch_size)
+    # model.fit(trainX, trainy, epochs=epochs, batch_size=batch_size)
     return model
 
 # load train files for positive and negative sequences 
@@ -75,13 +79,29 @@ def load_files_train(label, trainX, trainy):
 
 def main():
     trainX, trainy = load_train_dataset()       # Load train data 
-    
-    # Comment this out for retraining
-    # model = train_model(trainX, trainy)         # Train model 
-    # model.save(f'trained_{apnea_type}_model', overwrite=True)   # Save model
- 
+
+    # # Comment this out for retraining
+    model = KerasClassifier(build_fn=build_model, verbose=0)
+    batch_size = [8, 16, 32, 64]
+    epochs = [10, 15, 20]
+    param_grid = dict(batch_size=batch_size, epochs=epochs)
+    grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1, cv=3)
+    grid_result = grid.fit(trainX, trainy)
+
+
+    # summarize results
+    print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
+    means = grid_result.cv_results_['mean_test_score']
+    stds = grid_result.cv_results_['std_test_score']
+    params = grid_result.cv_results_['params']
+    for mean, stdev, param in zip(means, stds, params):
+        print("%f (%f) with: %r" % (mean, stdev, param))
+
+
     # Comment this out unless retrain 
-    retrain_model(trainX, trainy)
+    # model = retrain_model(trainX, trainy)
+# 
+    # model.save(f'trained_{apnea_type}_model', overwrite=True)   # Save model 
 
 # Retrain 
 def retrain_model(trainX, trainy):
@@ -89,7 +109,7 @@ def retrain_model(trainX, trainy):
     print(f"Retraining model....{model_name}")
     model = keras.models.load_model(model_name)
     model.fit(trainX, trainy, epochs=epochs, batch_size=batch_size)
-    model.save(f'trained_{apnea_type}_model', overwrite=True)
+    return model 
 
 if __name__ == "__main__":
     main()
