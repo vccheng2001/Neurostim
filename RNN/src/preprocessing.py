@@ -15,7 +15,7 @@ import csv
 import shutil
 import sys
 
-DATA = "../mit/"
+DATA = "../dreams/"
 
 (program, apnea_type, timesteps) = sys.argv
 raw_path = f"{DATA}RAW/raw_{apnea_type}/"

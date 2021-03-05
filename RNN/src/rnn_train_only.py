@@ -15,6 +15,8 @@ from pandas import read_csv
 from sklearn.model_selection import GridSearchCV
 from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
 
+from tensorflow.keras import optimizers 
+
 # Keras LSTM model 
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout, LSTM
@@ -24,7 +26,7 @@ import tensorflow.keras as keras
 from matplotlib import pyplot
 
 # parameters
-DATA = "../mit/"
+DATA = "../dreams/"
 (program, apnea_type, timesteps, epochs, batch_size) = sys.argv
 timesteps, epochs, batch_size = int(timesteps), int(epochs), int(batch_size)
 labels = {"positive/":1, "negative/":0}
@@ -35,20 +37,23 @@ model_path = f"{DATA}MODELS/"
 # fit and evaluate rnn-lstm model
 def build_model(trainX, trainy):
     # trainX, trainy = load_train_dataset()       # Load train data 
-
-    n_timesteps, n_features, n_outputs = trainX.shape[1], trainX.shape[2], trainy.shape[1]
+    n_samples, n_timesteps, n_outputs = trainX.shape[1], trainX.shape[2], trainy.shape[1]
     # Add one layer at a time 
     model = Sequential()
     # 100 units in output 
-    model.add(LSTM(100, input_shape=(n_timesteps,n_features)))
+    model.add(LSTM(128, input_shape=(n_samples,n_timesteps)))
     # drop 50% of input units 
-    model.add(Dropout(0.5))
+    model.add(Dropout(0.1))
     # dense neural net layer, relu(z) = max(0,z) output = activation(dot(input, kernel)
-    model.add(Dense(100, activation='relu'))
+    model.add(Dense(32, activation='relu'))
     # Softmax: n_outputs in output (1)
-    model.add(Dense(n_outputs, activation='softmax'))
+    model.add(Dense(n_outputs, activation='sigmoid'))
     # Binary 0-1 loss, use SGD 
-    model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+    model.compile(
+        optimizer="adam",
+        loss="binary_crossentropy",
+        metrics=["accuracy"],
+    )
     # fit network
     model.fit(trainX, trainy, epochs=epochs, batch_size=batch_size)
     return model

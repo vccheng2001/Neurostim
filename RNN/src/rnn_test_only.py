@@ -24,7 +24,7 @@ from tensorflow.keras.utils import to_categorical
 from matplotlib import pyplot
 
 # parameters 
-DATA = "../mit/" 
+DATA = "../dreams/" 
 
 (program, apnea_type, timesteps, threshold) = sys.argv
 test_path = f"{DATA}TEST/test_{apnea_type}/"
@@ -106,12 +106,11 @@ def load_files_test(actual, label, X):
     for file_name in files:
         file_path = path+file_name
         # print('Currently processing test file:', file_name)
-        arr = np.loadtxt(file_path,delimiter="\n", dtype=np.float64)
-        if X.shape[1] == arr.shape[0]: # make sure dims match
-            # Add as row to x matrix
-            X = np.vstack((X, arr))
-            # Build actual values (positive/negative)
-            actual.append(labels[label])
+        sample = np.loadtxt(file_path,delimiter="\n", dtype=np.float64)
+        # Add as row to x matrix
+        X = np.vstack((X, sample))
+        # Build actual values (positive/negative)
+        actual.append(labels[label])
     return X
 
 
