@@ -24,12 +24,11 @@ from tensorflow.keras.utils import to_categorical
 from matplotlib import pyplot
 
 # parameters 
-DATA = "../dreams/" 
 
-(program, apnea_type, timesteps, threshold) = sys.argv
-test_path = f"{DATA}TEST/test_{apnea_type}/"
-pred_path = f"{DATA}PREDICTIONS/"
-model_path = f"{DATA}MODELS/"
+(program, data, apnea_type, timesteps, threshold) = sys.argv
+test_path = f"../{data}/TEST/test_{apnea_type}/"
+pred_path = f"../{data}/PREDICTIONS/"
+model_path = f"../{data}/MODELS/"
 
 batch_size = 64
 labels = {"positive/":1, "negative/":0}

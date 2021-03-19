@@ -4,8 +4,8 @@ rnn_train_only.py
 This program reads the preprocessed train files into X, y matrices,
 then trains/saves an RNN model to the file trained_<apnea-type>_model.
 
-params: <apnea_type>, <timesteps> 
-Example: python3 rnn_train_only.py osa 160
+params: <apnea_type>, <timesteps> <epochs> <batch_size  
+Example: python3 rnn_train_only.py osa 160 10 16
 '''
 
 import os, sys
@@ -26,13 +26,12 @@ import tensorflow.keras as keras
 from matplotlib import pyplot
 
 # parameters
-DATA = "../dreams/"
 (program, apnea_type, timesteps, epochs, batch_size) = sys.argv
 timesteps, epochs, batch_size = int(timesteps), int(epochs), int(batch_size)
 labels = {"positive/":1, "negative/":0}
-train_group = f"{DATA}TRAIN/train_{apnea_type}/"
-pred_path = f"{DATA}PREDICTIONS/"
-model_path = f"{DATA}MODELS/"
+train_group = f"../{data}/TRAIN/train_{apnea_type}/"
+pred_path = f"../{data}/PREDICTIONS/"
+model_path = f"../{data}/MODELS/"
 
 # fit and evaluate rnn-lstm model
 def build_model(trainX, trainy):
