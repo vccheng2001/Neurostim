@@ -26,7 +26,7 @@ import tensorflow.keras as keras
 from matplotlib import pyplot
 
 # parameters
-(program, apnea_type, timesteps, epochs, batch_size) = sys.argv
+(program, data, apnea_type, timesteps, epochs, batch_size) = sys.argv
 timesteps, epochs, batch_size = int(timesteps), int(epochs), int(batch_size)
 labels = {"positive/":1, "negative/":0}
 train_group = f"../{data}/TRAIN/train_{apnea_type}/"
