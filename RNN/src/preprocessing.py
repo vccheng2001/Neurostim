@@ -53,21 +53,26 @@ def setup_train_data(raw_path,label):
     files = os.listdir(dirs) 
     num_files = len(files)
     num_train = num_files * 0.8
+
     # Read each file 
     i = 0
-    num_split_train = 0
     for file_name in files:
         file_path = f"{dirs}/{file_name}"
         # Input raw file
-        print("Input:" , file_name)
-        # Output file path 
-        out_file = train_path+label+label[:-1] + "_" + str(i)+".txt"
+        print(f"Input:{file_name}")
+
+        # train-test-split 
+        if i < num_train: # train 80%
+            out_file = f"{train_path}{label}{label[:-1]}_{str(i)}.txt"
+        else:             # test 20%
+            out_file = f"{test_path}{label}{label[:-1]}_{str(i)}.txt"
+
         try:
+            # Read raw file
             df = pd.read_csv(file_path, skip_blank_lines=True, header=None, sep="\n")
-            # only need <timesteps> rows
-            
             df.dropna(axis=0,inplace=True)
             df = df.head(int(timesteps))
+            # Output 
             if not df.empty and df.shape[0] == int(timesteps):
                 print("Output:" , out_file)
                 df.to_csv(out_file, index=False, header=None,sep="\n",float_format='%.4f')
@@ -76,33 +81,7 @@ def setup_train_data(raw_path,label):
             print(err)
             os.remove(file_path)
             continue
-
         i+=1
-
-
-    # train test split
-    # train/train_osa/negative/...
-    files_to_split = os.listdir(train_path+label)
-    num_files_to_split = len(files_to_split) # num files
-    num_test_files =  int(num_files_to_split * 0.2)
-    print(f"Splitting {num_test_files} {label}s into test dir")
-    num_split = 0
-
-    ''' move to test '''
-    for file in files_to_split:
-        if num_split == num_test_files:
-            break
-        # move to test
-        train_loc = train_path+label+file
-        test_loc =  test_path+label+file
-        os.rename(train_loc, test_loc)
-        num_split+= 1
-
-    ''' check how many test files '''
-    # test_files = os.listdir(test_path+label) 
-    # print(f"num test {label}: {len(test_files)}")
-
-
 
 
 # Clears directory
