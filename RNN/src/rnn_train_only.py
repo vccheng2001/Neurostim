@@ -4,8 +4,8 @@ rnn_train_only.py
 This program reads the preprocessed train files into X, y matrices,
 then trains/saves an RNN model to the file trained_<apnea-type>_model.
 
-params: <apnea_type>, <timesteps> <epochs> <batch_size  
-Example: python3 rnn_train_only.py osa 160 10 16
+params: <data> <apnea_type>, <timesteps> <epochs> <batch_size  
+Example: python3 rnn_train_only.py dreams osa 160 10 16
 '''
 
 import os, sys

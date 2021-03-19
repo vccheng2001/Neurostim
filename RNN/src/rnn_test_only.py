@@ -5,8 +5,8 @@ This program makes predictions on files in the
 test directory using the pre-trained model. 
 ** must train first 
 
-params: <apnea_type>, <timesteps>, <threshold>
-Example: python3 rnn_test_only.py osa 160 0.9
+params: <data> <apnea_type>, <timesteps>, <batch_size>, <threshold>
+Example: python3 rnn_test_only.py dreams osa 160 16 0.9
 '''
 import glob
 import os, sys
@@ -25,14 +25,12 @@ from matplotlib import pyplot
 
 # parameters 
 
-(program, data, apnea_type, timesteps, threshold) = sys.argv
+(program, data, apnea_type, timesteps, batch_size, threshold) = sys.argv
 test_path = f"../{data}/TEST/test_{apnea_type}/"
 pred_path = f"../{data}/PREDICTIONS/"
 model_path = f"../{data}/MODELS/"
 
-batch_size = 64
 labels = {"positive/":1, "negative/":0}
-
 
 # tests on positive/negative sequences in test files
 def main():
@@ -43,9 +41,9 @@ def main():
 
     # Accuracy
     testy = to_categorical(actual)
-    print_accuracy(testX, testy, model, batch_size)
+    print_accuracy(testX, testy, model, int(batch_size))
 
-    predictions = model.predict(testX, batch_size)
+    predictions = model.predict(testX, int(batch_size))
     # save predictions to file 
     output_predictions(predictions, np.asarray(actual))
    
