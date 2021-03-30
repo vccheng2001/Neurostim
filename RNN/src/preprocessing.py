@@ -15,7 +15,7 @@ import sys
 import shutil
 
 
-(data, apnea_type, timesteps) = sys.argv
+(program, data, apnea_type, timesteps) = sys.argv
 raw_path =      f"../{data}/RAW/raw_{apnea_type}/"
 train_path =    f"../{data}/TRAIN/train_{apnea_type}/"
 test_path =     f"../{data}/TEST/test_{apnea_type}/"

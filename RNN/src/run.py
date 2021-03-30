@@ -8,7 +8,6 @@ results = {}
 for i in range(1,9):
     apnea_type = f"\n\nosahs_excerpt{i}\n"
     print(f"**********************{apnea_type}*************************")
-    preprocessing.main()
     print("Preprocessing\n")
     os.system(f"python3 preprocessing.py")#{data} {apnea_type} {timesteps}")
     print(f"# Positives, # Negatives: {preprocessing.num_files_per_label.values()}")
