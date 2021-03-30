@@ -6,50 +6,27 @@ Standard file format:
 Types of apnea:
 - osa, osahs (hypopnea)...
 
-1. Preprocessing
+1. Preprocessing: preprocessing.py
  
-   preprocessing.py: Takes positive/negative sequences in <raw> directory and 
-   cleans/processes it, outputs them to train dir
 
-        params: <apnea_type>, <timesteps> 
-        Example: python3 preprocessing.py osa 160
+     Preprocesses raw files into training data. 
+     sorted by positive/negative sequences. 
 
-2. Training 
+     args: <data> <apnea_type>, <timesteps> 
+     Example: python3 dreams preprocessing.py osa 160
 
-   a) rnn_train_only.py: Only trains, saves trained model to the file
-      "trained_<apnea-type>_model".
+2. Training: rnn_train_only.py
 
-        params: <apnea_type>, <timesteps> 
-        Example: python3 rnn_train_only.py osa 160
+      Loads positive/negative sequences from preprocessed training files
+      then trains/saves an RNN model to the file trained_<apnea-type>_model.
 
-   b) rnn_train_and_test.py (see below)
+      args: <data> <apnea_type>, <timesteps> <epochs> <batch_size  
+      Example: python3 rnn_train_only.py dreams osa 160 10 16
 
-3. Testing
-   a) rnn_train_and_test.py 
-      Reads the preprocessed pos/negfiles in the train directory, trains the model, then tests it against the pos/neg files in the test directory. 
+3. Testing: rnn_test_only.py
+  
 
-        params: <apnea_type>, <timesteps>, <threshold>
-        Example: python3 rnn_train_and_test.py osa 160 0.9
+      Makes predictions on unseen sequences using the pre-trained model. 
 
-        Note: in main() choose either:
-        -make_predictions: makes and saves predictions
-        -run_experiments: trains/tests <repeat> times, outputs
-                        accuracy 
-    
-    b) rnn_test_only.py: Makes predictions on pos/neg files in the 
-        test directory using the pre-trained model. 
-
-        params: <apnea_type>, <timesteps>, <threshold>
-        Example: python3 rnn_train_and_test.py osa 160 0.9
-
-    c) rnn_test_window.py: takes an input test file and 
-    and runs it against the trained model (trained_<apnea-type>_model).
-    Performs a sliding window (window size: <timesteps>) over the test file
-    and outputs a prediction file.
-
-        params: <apnea_type>, <timesteps>, <threshold>
-        Example: python3 rnn_train_and_test.py osa 160 0.9
-
-
-  4. Graphing 
-  For sliding window, graphs out predicted vs actual  
+      args: <data> <apnea_type>, <timesteps>, <batch_size>, <threshold>
+      Example: python3 rnn_test_only.py dreams osa 160 0.7
