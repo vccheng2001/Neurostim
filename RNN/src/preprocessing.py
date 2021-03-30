@@ -58,8 +58,9 @@ def setup_train_data(raw_path,label):
             # Keep only <timesteps> rows
             df = df.head(int(timesteps))
             # print("Output:" , out_file) # output
-            df.to_csv(out_file, index=False, header=None, sep="\n", float_format='%.4f')
-            i+=1
+            if df.shape[0] == int(timesteps):
+                df.to_csv(out_file, index=False, header=None, sep="\n", float_format='%.4f')
+                i+=1
         except Exception as e:
             print(f"Error: {e}")
             os.remove(file_path)
