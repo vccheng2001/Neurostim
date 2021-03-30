@@ -22,7 +22,8 @@ from tensorflow.keras.utils import to_categorical
 
 # Visualization 
 from matplotlib import pyplot
-from sklearn.metrics import confusion_matrix, classification_report
+from sklearn.metrics import confusion_matrix, classification_report, precision_recall_fscore_support
+# from run import data, apnea_type, timesteps, batch_size, threshold
 
 (program, data, apnea_type, timesteps, batch_size, threshold) = sys.argv
 test_path = f"../{data}/TEST/test_{apnea_type}/"
@@ -43,8 +44,9 @@ def main():
     actual      = np.expand_dims(actual, axis=1)
     predicted   = np.expand_dims(predicted, axis=1)
     # evaluate accuracy, confusion matrix 
-    summarize_results(probabilities, actual, predicted)
-
+    (p,r,f,c)= summarize_results(probabilities, actual, predicted)
+    print(p,r,f,c)
+    return p,r,f,c
 
 def summarize_results(probabilities, actual, predicted):
     ''' Save predictions, confusion matrix to file '''
@@ -63,8 +65,8 @@ def summarize_results(probabilities, actual, predicted):
         predictions_and_labels = np.hstack((probabilities, predicted, actual))
         np.savetxt(out, predictions_and_labels, delimiter=' ',fmt='%10f', \
             header="Negative | Positive | Predicted | Actual")
-        out.close()
-
+    out.close()
+    return precision_recall_fscore_support(actual, predicted, labels=[1,0])
 
 def load_test_dataset():
     ''' Load input test vector '''

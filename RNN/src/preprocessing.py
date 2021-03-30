@@ -14,14 +14,6 @@ import csv
 import sys
 import shutil
 
-
-(program, data, apnea_type, timesteps) = sys.argv
-raw_path =      f"../{data}/RAW/raw_{apnea_type}/"
-train_path =    f"../{data}/TRAIN/train_{apnea_type}/"
-test_path =     f"../{data}/TEST/test_{apnea_type}/"
-labels =        ["positive/", "negative/"]
-num_files_per_label = {}
-
 def main():
     ''' Preprocess raw apnea files '''
     initialize_directories()
@@ -78,4 +70,11 @@ def init_dir(path):
     
 
 if __name__ == "__main__":
+    print(f'Args: {sys.argv}')
+    (program, data, apnea_type, timesteps) = sys.argv
+    raw_path =      f"../{data}/RAW/raw_{apnea_type}/"
+    train_path =    f"../{data}/TRAIN/train_{apnea_type}/"
+    test_path =     f"../{data}/TEST/test_{apnea_type}/"
+    labels =        ["positive/", "negative/"]
+    num_files_per_label = {}
     main()

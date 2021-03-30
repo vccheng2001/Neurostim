@@ -26,17 +26,11 @@ from sklearn.model_selection import GridSearchCV
 # Graphing 
 from matplotlib import pyplot
 
-# parameters
-(program, data, apnea_type, timesteps, epochs, batch_size) = sys.argv
-timesteps, epochs, batch_size = int(timesteps), int(epochs), int(batch_size)
-labels = {"positive/":1, "negative/":0}
-train_path =   f"../{data}/TRAIN/train_{apnea_type}/"
-pred_path =     f"../{data}/PREDICTIONS/"
-model_path =    f"../{data}/MODELS/"
 
 def main():
     trainX, trainy = load_train_dataset() 
     model = train_model(trainX, trainy)
+    # model = retrain_model()
     model.save(f'{model_path}trained_{apnea_type}_model', overwrite=True)   # Save model 
 
 def train_model(trainX, trainy):
@@ -63,8 +57,9 @@ def train_model(trainX, trainy):
     model.fit(trainX, trainy, epochs=epochs, batch_size=batch_size)
     return model
 
-def retrain_model(trainX, trainy):
+def retrain_model():
     ''' Loads and retrains saved model '''
+    trainX, trainy = load_train_dataset()
     model_name = f"{model_path}trained_{apnea_type}_model"
     print(f"Retraining model....{model_name}")
     model = keras.models.load_model(model_name)
@@ -93,4 +88,10 @@ def load_train_dataset():
 
 
 if __name__ == "__main__":
+    (program, data, apnea_type, timesteps, epochs, batch_size) = sys.argv
+    timesteps, epochs, batch_size = int(timesteps), int(epochs), int(batch_size)
+    labels = {"positive/":1, "negative/":0}
+    train_path =   f"../{data}/TRAIN/train_{apnea_type}/"
+    pred_path =     f"../{data}/PREDICTIONS/"
+    model_path =    f"../{data}/MODELS/"
     main()
