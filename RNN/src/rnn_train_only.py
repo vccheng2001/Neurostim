@@ -36,15 +36,23 @@ model_path = f"../{data}/MODELS/"
 # fit and evaluate rnn-lstm model
 def build_model(trainX, trainy):
     # trainX, trainy = load_train_dataset()       # Load train data 
-    n_samples, n_timesteps, n_outputs = trainX.shape[1], trainX.shape[2], trainy.shape[1]
+    # print(trainX.shape)
+    # exit(0)
+    n_outputs = trainy.shape[1]
     # Add one layer at a time 
     model = Sequential()
-    # 100 units in output 
-    model.add(LSTM(128, input_shape=(n_samples,n_timesteps)))
+    # 100 units in output                        160       1
+    # inputs: A 3D tensor with shape [batch, timesteps, feature].
+    model.add(LSTM(128, input_shape=(timesteps,1)))
     # drop 50% of input units 
     model.add(Dropout(0.1))
     # dense neural net layer, relu(z) = max(0,z) output = activation(dot(input, kernel)
-    model.add(Dense(32, activation='relu'))
+    model.add(Dense(64, activation='relu'))
+    # 
+    model.add(Dropout(0.1))
+    #
+    model.add(Dense(16, activation='relu'))
+
     # Softmax: n_outputs in output (1)
     model.add(Dense(n_outputs, activation='sigmoid'))
     # Binary 0-1 loss, use SGD 
@@ -117,7 +125,7 @@ def retrain_model(trainX, trainy):
     model_name = f"{model_path}trained_{apnea_type}_model"
     print(f"Retraining model....{model_name}")
     model = keras.models.load_model(model_name)
-    model.fit(trainX, trainy, epochs=epochs, batch_size=batch_size)
+    model.fit(trainX, trainy, epochs=epochs, batch_size=batch_size,verbose=0)
     return model 
 
 if __name__ == "__main__":

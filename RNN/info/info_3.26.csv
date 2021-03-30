@@ -1,0 +1,38 @@
+dataset,apnea type,excerpt,# osa,# osahs,# other,"# pos, # neg sequences (asterisk means predicting all 0s)",3/26 notes
+dreams,apnea,nt_excerpt1,,,,,
+dreams,apnea,osa_excerpt1,194,,9,"192+,567-",
+dreams,apnea,osa_excerpt2,66,,1,"65+,592- *",
+dreams,apnea,osa_excerpt3,340,,0,"339+,694-",
+dreams,apnea,osa_excerpt4,389,,1,"387+,426-",
+dreams,apnea,osa_excerpt5,350,,161,"350+,278-",
+dreams,apnea,osa_excerpt6,66,,0,"65+,891- *",
+dreams,apnea,osa_excerpt7,209,,10,"208+,342-",
+dreams,apnea,osa_excerpt8,39,,0,"38+,766- *",
+dreams,apnea,osa_excerpt9,128,,0,"127+,899-",
+dreams,hypopnea,osahs_excerpt1,,249,,"249+,717-",improved after adding Dense and Dropout layer to LSTM
+dreams,hypopnea,osahs_excerpt2,,47,,"46+,592- *","Overfitting (train accuracy ~ 93% but always predict 0 on test data with >95% confidence.)
+"
+dreams,hypopnea,osahs_excerpt3,,38,,"37+,63- *",Overfitting
+dreams,hypopnea,osahs_excerpt4,,333,,"332+,426- *","train loss stays high (0.6), train accuracy stays at~0.65. Try train 5 epochs, bs = 4 -> loss plateaus at 0.67, training acc = 0.5. Confidence: 50% throughout"
+dreams,hypopnea,osahs_excerpt5,,189,,"189+,278-","189+,278-. Train epoch: 10,  Works well with batch size = 1 (SGD) . Train loss (0.52), Train accuracy (0.78)  (previously the prediction was all 0s)"
+dreams,hypopnea,osahs_excerpt6,,151,,"150+,891- *","150+,891-. train loss:0.45, train acc: 0.85, Predict all 0s"
+dreams,hypopnea,osahs_excerpt7,,113,,"113+,342- *","113+,342-, train loss: 0.4428 - train accuracy: 0.7335. Predict all 0s"
+dreams,hypopnea,osahs_excerpt8,,12,,"11+,766- * (overfit)",Overfitting
+dreams,hypopnea,osahs_all,,,,"across all patients *",
+dublin,all,all_ucddb2,7,115,,"123+,282- *",
+dublin,all,all_ucddb3,28,268,,"306+,401-, sometimes predict 0 for apnea event",
+dublin,all,all_ucddb5,0,56,0,"56+,649- *",
+dublin,all,all_ucddb6,0,127,,"300+,452-, sometimes predict 0 for apnea event",
+dublin,all,all_ucddb7,16,54,,"73+,494- sometimes predict 0 for apnea event",
+dublin,all,all_ucddb8,0,18,,"18+,176- *",
+dublin,all,all_ucddb9,3,61,,"77+,594- *",
+dublin,all,all_ucddb10,2,229,,"233+,456-, predict all 0",
+dublin,all,all_ucddb11,0,35,,"34+,217- *",
+dublin,all,all_ucddb12,25,110,,"152+,450-",
+dublin,all,all_ucddb14,1,179,,"182+,478- *",
+dublin,all,all_ucddb19,22,79,,"105+,463-, sometimes predicts 1 for apnea",
+dublin,all,all_ucddb25,29,222,,"435+,176-, some false positives","435+,176-. Loss at 0.5, accuracy at 0.7 (worsens over time). Retrain with bs=32,ep=5, predicts relatively well"
+dublin,all,all_ucddb27,49,197,,"409+,478-","409+,478-. train bs=16,ep=10. Loss plateaus at 0.45, acc plateaus = 0.82.Many false neg (but captures overall apnea event timeframe) TN: 93, FP: 2, FN: 18, TP: 15"
+mit,apnea+hypopnea,mit_slp37_norm (nonlinear),429,0,,"scale data * 100",
+mit,apnea+hypopnea,mit_slp_61,155,34,,"scale data * 100",
+"mit ",apnea+hypopnea,mit_slp37_norm (linear),429,0,,"scale data * 100",

@@ -1,0 +1,37 @@
+dataset,apnea type,excerpt,# osa,# osahs,# other,accuracy
+dreams,apnea,nt_excerpt1,,,,90.91
+dreams,apnea,osa_excerpt1,194,,9,96
+dreams,apnea,osa_excerpt2,66,,1,X
+dreams,apnea,osa_excerpt3,340,,0,98.03
+dreams,apnea,osa_excerpt4,389,,1,89.09
+dreams,apnea,osa_excerpt5,350,,161,92.63
+dreams,apnea,osa_excerpt6,66,,0,X
+dreams,apnea,osa_excerpt7,209,,10,96
+dreams,apnea,osa_excerpt8,39,,0,X
+dreams,apnea,osa_excerpt9,128,,0,96
+dreams,hypopnea,osahs_excerpt1,,249,,92.12
+dreams,hypopnea,osahs_excerpt2,,47,,X
+dreams,hypopnea,osahs_excerpt3,,38,,X
+dreams,hypopnea,osahs_excerpt4,,333,,X
+dreams,hypopnea,osahs_excerpt5,,189,,X
+dreams,hypopnea,osahs_excerpt6,,151,,X
+dreams,hypopnea,osahs_excerpt7,,113,,X
+dreams,hypopnea,osahs_excerpt8,,12,,X
+dreams,hypopnea,osahs_all,,,,X
+dublin,all,all_ucddb2,7,115,,X
+dublin,all,all_ucddb3,28,268,,83.2
+dublin,all,all_ucddb5,0,56,0,X
+dublin,all,all_ucddb6,0,127,,60
+dublin,all,all_ucddb7,16,54,,60
+dublin,all,all_ucddb8,0,18,,X
+dublin,all,all_ucddb9,3,61,,X
+dublin,all,all_ucddb10,2,229,,X
+dublin,all,all_ucddb11,0,35,,X
+dublin,all,all_ucddb12,25,110,,85
+dublin,all,all_ucddb14,1,179,,X
+dublin,all,all_ucddb19,22,79,,<80
+dublin,all,all_ucddb25,29,222,,80
+dublin,all,all_ucddb27,49,197,,85
+mit,apnea+hypopnea,mit_slp37_norm (nonlinear),429,0,,89
+mit,apnea+hypopnea,mit_slp_61,155,34,,85.7
+"mit ",apnea+hypopnea,mit_slp37_norm (linear),429,0,,87

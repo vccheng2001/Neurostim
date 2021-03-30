@@ -59,7 +59,7 @@ def setup_train_data(raw_path,label):
     for file_name in files:
         file_path = f"{dirs}/{file_name}"
         # Input raw file
-        print(f"Input:{file_name}")
+        # print(f"Input:{file_name}")
 
         # train-test-split 
         if i < num_train: # train 80%
@@ -74,7 +74,7 @@ def setup_train_data(raw_path,label):
             df = df.head(int(timesteps))
             # Output 
             if not df.empty and df.shape[0] == int(timesteps):
-                print("Output:" , out_file)
+                # print("Output:" , out_file)
                 df.to_csv(out_file, index=False, header=None,sep="\n",float_format='%.4f')
 
         except Exception as err:
