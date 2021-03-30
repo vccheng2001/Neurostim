@@ -28,7 +28,6 @@ from sklearn.metrics import confusion_matrix, classification_report
 test_path = f"../{data}/TEST/test_{apnea_type}/"
 pred_path = f"../{data}/PREDICTIONS/"
 model_path = f"../{data}/MODELS/"
-
 labels = {"positive/":1, "negative/":0}
 
 def main():
