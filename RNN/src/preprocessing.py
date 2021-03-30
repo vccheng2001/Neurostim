@@ -20,8 +20,8 @@ train_path =    f"../{data}/TRAIN/train_{apnea_type}/"
 test_path =     f"../{data}/TEST/test_{apnea_type}/"
 labels =        ["positive/", "negative/"]
 
-# Preprocesses apnea files 
 def main():
+    ''' Preprocess raw apnea files '''
     init_dirs()
     for label in labels:
         setup_train_data(raw_path, label)
@@ -29,28 +29,25 @@ def main():
         num_files = len(os.listdir(raw_path + label))
         print(f"Parsed {str(num_files)} {label[:-1]} sequences.")
 
-# Sets up directories for train, test data 
-def init_dirs():
-    remove_dir(train_path)
-    remove_dir(test_path)
-    make_dir(train_path)
-    make_dir(test_path)
+def init_directories():
+    '''Sets up directories for train, test data '''
+    init_dir(train_path)
+    init_dir(test_path)
     for label in labels:
-        make_dir(train_path+label)
-        make_dir(test_path+label) # Comment out if sliding window
+        init_dir(train_path+label)
+        init_dir(test_path+label) # Comment out if sliding window
 
-# Preprocesses raw data into train data
 def setup_train_data(raw_path,label):
+    '''Preprocesses raw data into train data'''
     dirs = raw_path + label
     files = os.listdir(dirs) 
-    num_files = len(files)
-    num_train = num_files * 0.8 # use 80% for train
+    num_train = len(files)* 0.8 # use 80% for train
 
     # Read each file 
     i = 0
     for file_name in files:
         file_path = f"{dirs}/{file_name}"
-        # print(f"Input:{file_name}") # input
+        # train test split 
         path = train_path if i < num_train else test_path
         out_file = f"{path}{label}{label[:-1]}_{str(i)}.txt"
         
@@ -62,25 +59,18 @@ def setup_train_data(raw_path,label):
             df = df.head(int(timesteps))
             # print("Output:" , out_file) # output
             df.to_csv(out_file, index=False, header=None, sep="\n", float_format='%.4f')
+            i+=1
         except Exception as e:
             print(f"Error: {e}")
             os.remove(file_path)
-            continue
-        i+=1
+            break
 
-
-# Makes directory 
-def make_dir(path):
+# Initializes directory
+def init_dir(path): 
+    shutil.rmtree(path)
     if not os.path.isdir(path):
         print("Making directory.... " + path)
         os.mkdir(path)
-
-
-# Clears directory
-def remove_dir(path):
-    if os.path.isdir(path):
-        shutil.rmtree(path)
-
     
 
 if __name__ == "__main__":

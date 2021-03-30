@@ -1,7 +1,7 @@
 '''
 rnn_train_only.py
 
-This program reads the preprocessed train files into X, y matrices,
+This program reads the positive/negative sequences from preprocessed training files
 then trains/saves an RNN model to the file trained_<apnea-type>_model.
 
 params: <data> <apnea_type>, <timesteps> <epochs> <batch_size  
@@ -12,16 +12,17 @@ import os, sys
 import numpy as np
 from numpy import mean, std, dstack 
 from pandas import read_csv
-from sklearn.model_selection import GridSearchCV
-from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
-
-from tensorflow.keras import optimizers 
 
 # Keras LSTM model 
+import tensorflow.keras as keras 
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout, LSTM
 from tensorflow.keras.utils import to_categorical
-import tensorflow.keras as keras 
+# Optimizers
+from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
+from tensorflow.keras import optimizers 
+from sklearn.model_selection import GridSearchCV
+
 # Graphing 
 from matplotlib import pyplot
 
@@ -29,32 +30,29 @@ from matplotlib import pyplot
 (program, data, apnea_type, timesteps, epochs, batch_size) = sys.argv
 timesteps, epochs, batch_size = int(timesteps), int(epochs), int(batch_size)
 labels = {"positive/":1, "negative/":0}
-train_group = f"../{data}/TRAIN/train_{apnea_type}/"
-pred_path = f"../{data}/PREDICTIONS/"
-model_path = f"../{data}/MODELS/"
+train_path =   f"../{data}/TRAIN/train_{apnea_type}/"
+pred_path =     f"../{data}/PREDICTIONS/"
+model_path =    f"../{data}/MODELS/"
 
-# fit and evaluate rnn-lstm model
-def build_model(trainX, trainy):
-    # trainX, trainy = load_train_dataset()       # Load train data 
-    # print(trainX.shape)
-    # exit(0)
+def main():
+    trainX, trainy = load_train_dataset() 
+    model = train_model(trainX, trainy)
+    model.save(f'{model_path}trained_{apnea_type}_model', overwrite=True)   # Save model 
+
+def train_model(trainX, trainy):
+    ''' Univariate LSTM model 
+        1 hidden layer, binary output
+    '''
     n_outputs = trainy.shape[1]
+    n_features = 1 # univariate 
     # Add one layer at a time 
     model = Sequential()
-    # 100 units in output                        160       1
-    # inputs: A 3D tensor with shape [batch, timesteps, feature].
-    model.add(LSTM(128, input_shape=(timesteps,1)))
+    # Inputs: A 3D tensor with shape [batch, timesteps, feature].
+    model.add(LSTM(256, input_shape=(timesteps,n_features)))
     # drop 50% of input units 
-    model.add(Dropout(0.1))
-    # dense neural net layer, relu(z) = max(0,z) output = activation(dot(input, kernel)
-    model.add(Dense(64, activation='relu'))
-    # 
-    model.add(Dropout(0.1))
-    #
-    model.add(Dense(16, activation='relu'))
-
-    # Softmax: n_outputs in output (1)
-    model.add(Dense(n_outputs, activation='sigmoid'))
+    model.add(Dropout(0.5))
+    # dense neural net layer, one output 
+    model.add(Dense(2, activation='sigmoid'))
     # Binary 0-1 loss, use SGD 
     model.compile(
         optimizer="adam",
@@ -65,68 +63,34 @@ def build_model(trainX, trainy):
     model.fit(trainX, trainy, epochs=epochs, batch_size=batch_size)
     return model
 
-# load train files for positive and negative sequences 
+def retrain_model(trainX, trainy):
+    ''' Loads and retrains saved model '''
+    model_name = f"{model_path}trained_{apnea_type}_model"
+    print(f"Retraining model....{model_name}")
+    model = keras.models.load_model(model_name)
+    model.fit(trainX, trainy, epochs=epochs, batch_size=batch_size, verbose=0)
+    return model 
+
 def load_train_dataset():
-    # Load Train Data 
-    trainy = np.array([],dtype=np.int64)
+    ''' loads train files for positive and negative sequences '''
+    trainy = np.array([], dtype=np.int64)
     trainX = np.array([], dtype=np.float64).reshape(0,int(timesteps))
+
     # Load train files for positive and negative sequences 
-    for label in labels:
-        trainX, trainy = load_files_train(label, trainX, trainy)
+    for label in labels: 
+        path = train_path+label
+        files = os.listdir(path)
+        for file in files:
+            # Append sample x to X matrix 
+            sample = np.loadtxt(path + file,delimiter="\n", dtype=np.float64)
+            trainX = np.vstack((trainX, sample))
+            # Append binary label to y vector 
+            trainy = np.hstack((trainy, labels[label]))
     trainX = np.expand_dims(trainX, axis=2)
     # convert y into a two-column probability distribution (-, +)
     trainy = to_categorical(trainy)
     return trainX, trainy
 
-# Creates X, y train matrices 
-def load_files_train(label, trainX, trainy):
-    path = train_group+label # e.g. train/positive/
-    files = os.listdir(path)
-    # Load all N train files one sample at a time
-    for file in files:
-        sample= np.loadtxt(path + file,delimiter="\n", dtype=np.float64)
-        # print(trainX.shape, sample.shape)
-        trainX = np.vstack((trainX, sample))
-        # Append binary 1 or 0 to y vector 
-        binary_label = labels[label]
-        trainy = np.hstack((trainy,binary_label))
-    return trainX, trainy
-
-def main():
-    trainX, trainy = load_train_dataset()       # Load train data 
-    model = build_model(trainX, trainy)
-    # # Comment this out for retraining
-    # model = KerasClassifier(build_fn=build_model, verbose=0)
-    # batch_size = [8, 16, 32, 64]
-    # epochs = [10, 15, 20]
-  
-  
-    # param_grid = dict(batch_size=batch_size, epochs=epochs)
-    # grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1, cv=3)
-    # grid_result = grid.fit(trainX, trainy)
-
-
-    # # summarize results
-    # print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
-    # means = grid_result.cv_results_['mean_test_score']
-    # stds = grid_result.cv_results_['std_test_score']
-    # params = grid_result.cv_results_['params']
-    # for mean, stdev, param in zip(means, stds, params):
-    #     print("%f (%f) with: %r" % (mean, stdev, param))
-
-
-    # Comment this out unless retrain 
-    # model = retrain_model(trainX, trainy)
-# 
-    model.save(f'{model_path}trained_{apnea_type}_model', overwrite=True)   # Save model 
-
-# Retrain 
-def retrain_model(trainX, trainy):
-    model_name = f"{model_path}trained_{apnea_type}_model"
-    print(f"Retraining model....{model_name}")
-    model = keras.models.load_model(model_name)
-    model.fit(trainX, trainy, epochs=epochs, batch_size=batch_size,verbose=0)
-    return model 
 
 if __name__ == "__main__":
     main()
