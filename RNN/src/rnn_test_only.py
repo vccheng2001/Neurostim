@@ -39,14 +39,20 @@ def main():
     testX, actual = load_test_dataset()
     # get predicted class
     probabilities = model.predict(testX)
-    predicted     = np.argmax(probabilities, axis = 1)
+    ones = probabilities[0:,1]
+    # label as 1 if predicted probability of apnea event > threshold, else label as 0
+    predicted = np.where(ones > float(threshold), 1, 0)
+
     # make dimensions match 
     actual      = np.expand_dims(actual, axis=1)
     predicted   = np.expand_dims(predicted, axis=1)
     # evaluate accuracy, confusion matrix 
-    (p,r,f,c)= summarize_results(probabilities, actual, predicted)
-    print(p,r,f,c)
-    return p,r,f,c
+    report = summarize_results(probabilities, actual, predicted)
+    return report
+
+def predict_threshold(prob):
+    '''Return 1 if probability that apnea event occurs >= threshold, else 0'''
+    return 1 if prob[1] >= threshold else 0
 
 def summarize_results(probabilities, actual, predicted):
     ''' Save predictions, confusion matrix to file '''
@@ -66,7 +72,7 @@ def summarize_results(probabilities, actual, predicted):
         np.savetxt(out, predictions_and_labels, delimiter=' ',fmt='%10f', \
             header="Negative | Positive | Predicted | Actual")
     out.close()
-    return precision_recall_fscore_support(actual, predicted, labels=[1,0])
+    return report
 
 def load_test_dataset():
     ''' Load input test vector '''

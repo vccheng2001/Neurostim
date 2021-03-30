@@ -42,12 +42,10 @@ def train_model(trainX, trainy):
     # Add one layer at a time 
     model = Sequential()
     # Inputs: A 3D tensor with shape [batch, timesteps, feature].
-    model.add(LSTM(256, input_shape=(timesteps,n_features)))
-    # drop 50% of input units 
-    model.add(Dropout(0.5))
+    model.add(LSTM(128, recurrent_dropout=0.2,input_shape=(timesteps,n_features),return_sequences=True))
+    model.add(LSTM(64, input_shape=(timesteps,n_features)))
     # dense neural net layer, one output 
-    model.add(Dense(2, activation='sigmoid'))
-    # Binary 0-1 loss, use SGD 
+    model.add(Dense(n_outputs, activation='sigmoid'))
     model.compile(
         optimizer="adam",
         loss="binary_crossentropy",

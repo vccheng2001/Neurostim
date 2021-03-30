@@ -32,29 +32,19 @@ def main():
     params = [epochs,batch_size,threshold]
 
 
-    # for i in [2,3,5,6,7,8,9]:
-    # apnea_type = f"{apnea_type}{i}"
-    # params: <data> <apnea_type>, <timesteps>, <batch_size>, <threshold>
-    # (program, data, timesteps, epochs, batch_size, threshold) = sys.argv
-    print(f"********************** PROCESSING {apnea_type} *************************")
-    print(f"\nPreprocessing {apnea_type} \n")
-    subprocess.call(['python3', 'preprocessing.py', data, apnea_type, timesteps])
+    for i in [12]:
+        excerpt = f"{apnea_type}{i}"
+        # params: <data> <apnea_type>, <timesteps>, <batch_size>, <threshold>
+        # (program, data, timesteps, epochs, batch_size, threshold) = sys.argv
+        print(f"********************** PROCESSING {excerpt} *************************")
+        print(f"\nPreprocessing {apnea_type} \n")
+        subprocess.call(['python3', 'preprocessing.py', data, excerpt, timesteps])
+        
+        print("\nTraining....\n")
+        subprocess.call(['python3', 'rnn_train_only.py' ,data, excerpt, timesteps, epochs, batch_size])
+        
+        print("\nTesting....\n")
+        subprocess.call(['python3', 'rnn_test_only.py', data, excerpt, timesteps, batch_size, threshold],stderr=subprocess.STDOUT)
     
-    print("\nTraining....\n")
-    subprocess.call(['python3', 'rnn_train_only.py' ,data, apnea_type, timesteps, epochs, batch_size])
-    
-    print("\nTesting....\n")
-    obj = subprocess.check_output(['python3', 'rnn_test_only.py', data, apnea_type, timesteps, batch_size, threshold],stderr=subprocess.STDOUT)
-    print(obj)
-    exit(0)
-    with open(f'../meta/results.csv', "a") as out:
-        writer = csv.DictWriter(out, fieldnames=['date','excerpt','precision','recall','f1','support','params'])
-        writer.writerow({'date': datetime.datetime.today(), \
-                        'excerpt':apnea_type, \
-                        'precision':p,\
-                        'recall':r,\
-                        'f1':f1,\
-                        'support':c,\
-                        'params': params})
 if __name__ == "__main__":
     main()

@@ -55,12 +55,11 @@ def setup_train_data(raw_path,label):
             # print("Output:" , out_file) # output
             if df.shape[0] == int(timesteps):
                 df.to_csv(out_file, index=False, header=None, sep="\n", float_format='%.4f')
-                i+=1
         except Exception as e:
             print(f"Error: {e}")
             os.remove(file_path)
             break
-
+        i+=1
 # Initializes directory
 def init_dir(path): 
     if os.path.isdir(path): shutil.rmtree(path)
