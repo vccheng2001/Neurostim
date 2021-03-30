@@ -32,8 +32,9 @@ def main():
     params = [epochs,batch_size,threshold]
 
 
-    for i in [12]:
-        excerpt = f"{apnea_type}{i}"
+    for i in [61]:
+        # excerpt = f"{apnea_type}{i}"
+        excerpt=f"mit_slp{i}_norm"
         # params: <data> <apnea_type>, <timesteps>, <batch_size>, <threshold>
         # (program, data, timesteps, epochs, batch_size, threshold) = sys.argv
         print(f"********************** PROCESSING {excerpt} *************************")
