@@ -67,7 +67,7 @@ def setup_train_data(raw_path,label):
 
 # Initializes directory
 def init_dir(path): 
-    shutil.rmtree(path)
+    if os.path.isdir(path): shutil.rmtree(path)
     if not os.path.isdir(path):
         print("Making directory.... " + path)
         os.mkdir(path)
