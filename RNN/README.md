@@ -1,4 +1,5 @@
 LSTM-RNN model to make sleep apnea predictions
+
 Standard file format: 
 - Positive/negative sequences used for testing. 
 - 8 hz (8 samples/second), 10 seconds before apnea, 5 seconds after
