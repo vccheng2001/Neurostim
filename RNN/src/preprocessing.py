@@ -14,11 +14,13 @@ import csv
 import sys
 import shutil
 
-(program, data, apnea_type, timesteps) = sys.argv
+
+(data, apnea_type, timesteps) = sys.argv
 raw_path =      f"../{data}/RAW/raw_{apnea_type}/"
 train_path =    f"../{data}/TRAIN/train_{apnea_type}/"
 test_path =     f"../{data}/TEST/test_{apnea_type}/"
 labels =        ["positive/", "negative/"]
+num_files_per_label = {}
 
 def main():
     ''' Preprocess raw apnea files '''
@@ -27,7 +29,8 @@ def main():
         setup_train_data(raw_path, label)
     for label in labels:
         num_files = len(os.listdir(raw_path + label))
-        print(f"Parsed {str(num_files)} {label[:-1]} sequences.")
+        num_files_per_label[label] = num_files
+        print(f"Parsed {num_files} {label[:-1]} sequences.")
 
 def initialize_directories():
     '''Sets up directories for train, test data '''
