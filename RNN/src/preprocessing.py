@@ -22,14 +22,14 @@ labels =        ["positive/", "negative/"]
 
 def main():
     ''' Preprocess raw apnea files '''
-    init_dirs()
+    initialize_directories()
     for label in labels:
         setup_train_data(raw_path, label)
     for label in labels:
         num_files = len(os.listdir(raw_path + label))
         print(f"Parsed {str(num_files)} {label[:-1]} sequences.")
 
-def init_directories():
+def initialize_directories():
     '''Sets up directories for train, test data '''
     init_dir(train_path)
     init_dir(test_path)
