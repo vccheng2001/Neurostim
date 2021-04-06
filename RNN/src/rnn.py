@@ -14,6 +14,7 @@ import csv
 import sys
 import shutil
 import argparse
+import re 
 
 def main():
     preprocess()
@@ -51,11 +52,12 @@ def setup_train_data(raw_path,label):
     # Read each file 
     i = 0
     for file_name in files:
+        # print(i, file_name)
+        # file_map[i] = file_name ###
         file_path = f"{dirs}/{file_name}"
         # train test split 
         path = train_path if i < num_train else test_path
-        out_file = f"{path}{label}{label[:-1]}_{str(i)}.txt"
-        
+        out_file = f"{path}{label}{label[:-1]}_{str(i)}-[{file_name[:-4]}].txt"
         try:
             # Read raw file
             df = pd.read_csv(file_path, skip_blank_lines=True, header=None, sep="\n")
@@ -121,17 +123,9 @@ def train_model():
     )
     # fit network
     model.fit(trainX, trainy, epochs=int(epochs), batch_size=int(batch_size))
-    model.save(f'{model_path}trained_{apnea_type}_model', overwrite=True)   # Save model 
+    model.save(f'{model_path}trained_{apnea_type}_model_NEW', overwrite=True)   # Save model 
     return model
 
-def retrain_model():
-    ''' Loads and retrains saved model '''
-    trainX, trainy = load_train_dataset()
-    model_name = f"{model_path}trained_{apnea_type}_model"
-    print(f"Retraining model....{model_name}")
-    model = keras.models.load_model(model_name)
-    model.fit(trainX, trainy, epochs=epochs, batch_size=batch_size, verbose=0)
-    return model 
 
 def load_train_dataset():
     ''' loads train files for positive and negative sequences '''
@@ -148,6 +142,7 @@ def load_train_dataset():
             trainX = np.vstack((trainX, sample))
             # Append binary label to y vector 
             trainy = np.hstack((trainy, labels[label]))
+            
     trainX = np.expand_dims(trainX, axis=2)
     # convert y into a two-column probability distribution (-, +)
     trainy = to_categorical(trainy)
@@ -161,45 +156,50 @@ def load_train_dataset():
 def test_model(model):
     ''' Testing on unseen positive/negative sequences '''
     # load test data
-    testX, actual = load_test_dataset()
+    testX, actual, index_map = load_test_dataset()
     # get predicted class
     probabilities = model.predict(testX)
+    num_test = len(probabilities)
     ones = probabilities[0:,1]
     # label as 1 if predicted probability of apnea event > threshold, else label as 0
     predicted = np.where(ones > float(threshold), 1, 0)
+    
+    diff = np.zeros(num_test, dtype=np.int64)
+    for i in range(num_test):
+        if predicted[i] != actual[i]: 
+            diff[i] = index_map[i]
 
     # make dimensions match 
     actual      = np.expand_dims(actual, axis=1)
     predicted   = np.expand_dims(predicted, axis=1)
+    diff        = np.expand_dims(diff, axis=1)
     # evaluate accuracy, confusion matrix 
-    report = summarize_results(probabilities, actual, predicted)
+    report = summarize_results(probabilities, actual, predicted, diff)
     return report
 
-def predict_threshold(prob):
-    '''Return 1 if probability that apnea event occurs >= threshold, else 0'''
-    return 1 if prob[1] >= threshold else 0
 
-def summarize_results(probabilities, actual, predicted):
+def summarize_results(probabilities, actual, predicted, diff):
     ''' Save predictions, confusion matrix to file '''
     report = classification_report(actual, predicted, labels=[1,0])
     tn, fp, fn, tp = confusion_matrix(actual, predicted, labels=[0,1]).ravel()
  
-    with open(f'{pred_path}predictions_{apnea_type}.txt', "w") as out:
+    with open(f'{pred_path}predictions_{apnea_type}_NEW.txt', "w") as out:
         out.write(f"Dataset: {data}, Excerpt: {apnea_type}\n")
         out.write(f"********************************************************\n")
         out.write(f"Results: \n {report} \n")
         out.write(f" TP: {tp}\n TN: {tn}\n FP: {fp}\n FN: {fn}\n")
         out.write(f"********************************************************\n")
 
-    with open(f'{pred_path}predictions_{apnea_type}.txt', "a") as out:
+    with open(f'{pred_path}predictions_{apnea_type}_NEW.txt', "a") as out:
         # save to output file 
-        predictions_and_labels = np.hstack((probabilities, predicted, actual))
+        predictions_and_labels = np.hstack((probabilities, predicted, actual, diff))
         np.savetxt(out, predictions_and_labels, delimiter=' ',fmt='%10f', \
             header="Negative | Positive | Predicted | Actual")
     out.close()
     return report
 
 def load_test_dataset():
+    index_map = []
     ''' Load input test vector '''
     actual = np.array([], dtype=np.int64)
     testX = np.array([], dtype=np.float64).reshape(0, int(timesteps))
@@ -208,15 +208,22 @@ def load_test_dataset():
     for label in labels:
         path = test_path+label
         files = os.listdir(path)
-        for file in files:
+        for i in range(len(files)):
+
+            file = files[i]
+            time = re.search(r'\[(.*?)\]', file).group(1)
+            index_map.append(float(time)) # map row num in X matrix to time 
+
             # print('Processing test file:', file)
             sample  = np.loadtxt(path+file,delimiter="\n", dtype=np.float64)
             testX   = np.vstack((testX, sample))
             # Append ground truth label to actual vector 
             actual  = np.hstack((actual, labels[label]))  
 
+    index_map = dict(enumerate(index_map))
+    print(index_map)
     testX = np.expand_dims(testX, axis=2) 
-    return testX, actual 
+    return testX, actual, index_map
 
 
 
@@ -233,7 +240,7 @@ if __name__ == "__main__":
 
     # store args 
 
-    data = args.data,
+    data = args.data
     apnea_type = args.apnea_type
     timesteps = args.timesteps
     epochs = args.epochs
@@ -245,8 +252,8 @@ if __name__ == "__main__":
     raw_path =      f"../{args.data}/RAW/raw_{args.apnea_type}/"
     train_path =    f"../{args.data}/TRAIN/train_{args.apnea_type}/"
     test_path =     f"../{args.data}/TEST/test_{args.apnea_type}/"
-    model_path =    f"../{args.data}/MODELS/trained_{args.apnea_type}_model"
-    pred_path =     f"../{args.data}/PREDICTIONS/predictions_{args.apnea_type}.txt"
+    model_path =    f"../{data}/MODELS/"
+    pred_path =     f"../{data}/PREDICTIONS/"
 
-    file_map = {}
+    index_map = []
     main()
