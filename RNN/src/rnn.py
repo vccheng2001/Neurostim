@@ -31,7 +31,7 @@ def preprocess():
     for label in labels:
         setup_train_data(raw_path, label)
     for label in labels:
-        num_files = len(os.listdir(raw_path + label))
+        num_files = get_num_files(raw_path + label)
         print(f"Parsed {num_files} {label[:-1]} sequences.")
   
 
@@ -166,23 +166,47 @@ def test_model(model):
     
     diff = np.zeros(num_test, dtype=np.int64)
     for i in range(num_test):
-        if predicted[i] != actual[i]: 
+        if predicted[i] != actual[i]:
             diff[i] = index_map[i]
+
+            
 
     # make dimensions match 
     actual      = np.expand_dims(actual, axis=1)
     predicted   = np.expand_dims(predicted, axis=1)
     diff        = np.expand_dims(diff, axis=1)
     # evaluate accuracy, confusion matrix 
-    report = summarize_results(probabilities, actual, predicted, diff)
-    return report
+    summarize_results(probabilities, actual, predicted, diff)
 
 
 def summarize_results(probabilities, actual, predicted, diff):
     ''' Save predictions, confusion matrix to file '''
     report = classification_report(actual, predicted, labels=[1,0])
+    p, r, f, s = precision_recall_fscore_support(actual, predicted, labels=[0,1])
     tn, fp, fn, tp = confusion_matrix(actual, predicted, labels=[0,1]).ravel()
- 
+    with open(f"{info_path}results.csv", 'a', newline='\n') as csvfile:
+        fieldnames = ['dataset','apnea_type', 'num_pos_train','num_neg_train',\
+                        'precision_1','precision_0','recall_1','recall_0','f1_1','f1_0',\
+                        'support_1','support_0','true_pos','true_neg','false_pos','false_neg']
+
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writerow({'dataset': data,
+                         'apnea_type':apnea_type,
+                         'num_pos_train': get_num_files(train_path+'positive/'),
+                         'num_neg_train': get_num_files(train_path+'negative/'),
+                         'precision_1': p[1],
+                         'precision_0':p[0],
+                         'recall_1':r[1],
+                         'recall_0':r[0],
+                         'f1_1':r[1],
+                         'f1_0':r[0],
+                         'support_1':s[1],
+                         'support_0':s[0],
+                         'true_pos': tp,
+                         'true_neg':tn,
+                         'false_pos':fp,
+                         'false_neg':fn})
+
     with open(f'{pred_path}predictions_{apnea_type}_NEW.txt', "w") as out:
         out.write(f"Dataset: {data}, Excerpt: {apnea_type}\n")
         out.write(f"********************************************************\n")
@@ -194,9 +218,9 @@ def summarize_results(probabilities, actual, predicted, diff):
         # save to output file 
         predictions_and_labels = np.hstack((probabilities, predicted, actual, diff))
         np.savetxt(out, predictions_and_labels, delimiter=' ',fmt='%10f', \
-            header="Negative | Positive | Predicted | Actual")
+            header="Negative | Positive | Predicted | Actual | Timestamp")
     out.close()
-    return report
+    
 
 def load_test_dataset():
     index_map = []
@@ -211,7 +235,10 @@ def load_test_dataset():
         for i in range(len(files)):
 
             file = files[i]
-            time = re.search(r'\[(.*?)\]', file).group(1)
+            # gets eeverything between brackets 
+            res = re.search(r'\[(.*?)\]', file).group(1)
+            res = res.split('.')[:2]
+            time = '.'.join(res)
             index_map.append(float(time)) # map row num in X matrix to time 
 
             # print('Processing test file:', file)
@@ -221,10 +248,13 @@ def load_test_dataset():
             actual  = np.hstack((actual, labels[label]))  
 
     index_map = dict(enumerate(index_map))
-    print(index_map)
+    # print(index_map)
     testX = np.expand_dims(testX, axis=2) 
     return testX, actual, index_map
 
+
+def get_num_files(path):
+    return len(os.listdir(path))
 
 
 if __name__ == "__main__":
@@ -254,6 +284,7 @@ if __name__ == "__main__":
     test_path =     f"../{args.data}/TEST/test_{args.apnea_type}/"
     model_path =    f"../{data}/MODELS/"
     pred_path =     f"../{data}/PREDICTIONS/"
-
+    info_path =     f"../info/"
+    num_files = {}
     index_map = []
     main()
