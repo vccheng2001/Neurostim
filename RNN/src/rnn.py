@@ -23,9 +23,9 @@ def main():
     # Test
     test_model(model)
 
-################################################################################
+'''###############################################################################
 #                               PREPROCESSING 
-################################################################################
+################################################################################'''
 def preprocess():
     initialize_directories()
     for label in labels:
@@ -79,9 +79,9 @@ def init_dir(path):
         print("Making directory.... " + path)
         os.mkdir(path)
     
-################################################################################
+'''################################################################################
 #                              TRAINING
-################################################################################
+################################################################################'''
 
 import os, sys
 import numpy as np
@@ -149,9 +149,9 @@ def load_train_dataset():
     return trainX, trainy
 
 
-################################################################################
+'''################################################################################
 #                                 TESTING
-################################################################################
+################################################################################'''
 
 def test_model(model):
     ''' Testing on unseen positive/negative sequences '''
@@ -166,9 +166,9 @@ def test_model(model):
     
     diff = np.zeros(num_test, dtype=np.int64)
     for i in range(num_test):
-        if predicted[i] != actual[i]:
+        if predicted[i] == 0 != actual[i]:
             diff[i] = index_map[i]
-
+            index_map[i]
             
 
     # make dimensions match 
@@ -181,11 +181,10 @@ def test_model(model):
 
 def summarize_results(probabilities, actual, predicted, diff):
     ''' Save predictions, confusion matrix to file '''
-    report = classification_report(actual, predicted, labels=[1,0])
     p, r, f, s = precision_recall_fscore_support(actual, predicted, labels=[0,1])
     tn, fp, fn, tp = confusion_matrix(actual, predicted, labels=[0,1]).ravel()
     with open(f"{info_path}results.csv", 'a', newline='\n') as csvfile:
-        fieldnames = ['dataset','apnea_type', 'num_pos_train','num_neg_train',\
+        fieldnames = [  'dataset','apnea_type', 'num_pos_train','num_neg_train',\
                         'precision_1','precision_0','recall_1','recall_0','f1_1','f1_0',\
                         'support_1','support_0','true_pos','true_neg','false_pos','false_neg']
 
@@ -206,19 +205,12 @@ def summarize_results(probabilities, actual, predicted, diff):
                          'true_neg':tn,
                          'false_pos':fp,
                          'false_neg':fn})
-
-    with open(f'{pred_path}predictions_{apnea_type}_NEW.txt', "w") as out:
-        out.write(f"Dataset: {data}, Excerpt: {apnea_type}\n")
-        out.write(f"********************************************************\n")
-        out.write(f"Results: \n {report} \n")
-        out.write(f" TP: {tp}\n TN: {tn}\n FP: {fp}\n FN: {fn}\n")
-        out.write(f"********************************************************\n")
-
-    with open(f'{pred_path}predictions_{apnea_type}_NEW.txt', "a") as out:
-        # save to output file 
-        predictions_and_labels = np.hstack((probabilities, predicted, actual, diff))
-        np.savetxt(out, predictions_and_labels, delimiter=' ',fmt='%10f', \
-            header="Negative | Positive | Predicted | Actual | Timestamp")
+    
+    predictions_and_labels = np.hstack((probabilities, predicted, actual, diff))
+    # save to output file 
+    with open(f'{pred_path}predictions_{apnea_type}_v1.txt', "a") as out:
+        np.savetxt(out, predictions_and_labels, delimiter='\t',fmt='%1.4f', \
+            header="prob_neg,prob_pos,predicted,actual,timestamp")
     out.close()
     
 
@@ -235,10 +227,8 @@ def load_test_dataset():
         for i in range(len(files)):
 
             file = files[i]
-            # gets eeverything between brackets 
-            res = re.search(r'\[(.*?)\]', file).group(1)
-            res = res.split('.')[:2]
-            time = '.'.join(res)
+            
+            time = re.search(r'\[(.*?)\]', file).group(1)
             index_map.append(float(time)) # map row num in X matrix to time 
 
             # print('Processing test file:', file)
@@ -255,6 +245,13 @@ def load_test_dataset():
 
 def get_num_files(path):
     return len(os.listdir(path))
+
+def parse_record_start_times(info_path, apnea_type):
+    df = pd.read_csv(f"{info_path}record_start_times.csv",header=0)
+    excerpt = re.search(r'(\d+)$', apnea_type).group(1)
+    df = df[(df['data'] == str(data)) & (df['excerpt'] == int(excerpt))]
+    start_time = df["start_time"]
+    return start_time
 
 
 if __name__ == "__main__":
@@ -278,13 +275,17 @@ if __name__ == "__main__":
     threshold = args.threshold
     labels ={'positive/':1, 'negative/':0}
 
-
-    raw_path =      f"../{args.data}/RAW/raw_{args.apnea_type}/"
-    train_path =    f"../{args.data}/TRAIN/train_{args.apnea_type}/"
-    test_path =     f"../{args.data}/TEST/test_{args.apnea_type}/"
-    model_path =    f"../{data}/MODELS/"
-    pred_path =     f"../{data}/PREDICTIONS/"
-    info_path =     f"../info/"
-    num_files = {}
-    index_map = []
-    main()
+    for i in [25,27]:
+        apnea_type = f"{args.apnea_type}{i}"
+        print(f"Processing {apnea_type}")
+ 
+        raw_path =      f"../{data}/RAW/raw_{apnea_type}/"
+        train_path =    f"../{data}/TRAIN/train_{apnea_type}/"
+        test_path =     f"../{data}/TEST/test_{apnea_type}/"
+        model_path =    f"../{data}/MODELS/"
+        pred_path =     f"../{data}/PREDICTIONS/"
+        info_path =     f"../info/"
+        start_time = parse_record_start_times(info_path, apnea_type)
+        num_files = {}
+        index_map = []
+        main()

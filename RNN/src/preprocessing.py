@@ -36,7 +36,7 @@ def setup_train_data(raw_path,label):
     '''Preprocesses raw data into train data'''
     dirs = raw_path + label
     files = os.listdir(dirs) 
-    num_train = len(files)* 0.8 # use 80% for train
+    num_train = len(files)* 0.7 # use 80% for train
 
     # Read each file 
     i = 0
