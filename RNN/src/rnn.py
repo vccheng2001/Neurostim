@@ -15,13 +15,14 @@ import sys
 import shutil
 import argparse
 import re 
+from datetime import datetime, timedelta
 
 def main():
     preprocess()
     # Train 
     model = train_model()
     # Test
-    test_model(model)
+    test_model(model, start_time)
 
 '''###############################################################################
 #                               PREPROCESSING 
@@ -52,8 +53,6 @@ def setup_train_data(raw_path,label):
     # Read each file 
     i = 0
     for file_name in files:
-        # print(i, file_name)
-        # file_map[i] = file_name ###
         file_path = f"{dirs}/{file_name}"
         # train test split 
         path = train_path if i < num_train else test_path
@@ -64,7 +63,6 @@ def setup_train_data(raw_path,label):
             df.dropna(axis=0,inplace=True)
             # Keep only <timesteps> rows
             df = df.head(int(timesteps))
-            # print("Output:" , out_file) # output
             if df.shape[0] == int(timesteps):
                 df.to_csv(out_file, index=False, header=None, sep="\n", float_format='%.4f')
         except Exception as e:
@@ -96,11 +94,6 @@ from tensorflow.keras.utils import to_categorical
 # Optimizers
 from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
 from tensorflow.keras import optimizers 
-from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import confusion_matrix, classification_report, precision_recall_fscore_support
-
-# Graphing 
-from matplotlib import pyplot
 
 def train_model():
     ''' Univariate LSTM model 
@@ -152,8 +145,12 @@ def load_train_dataset():
 '''################################################################################
 #                                 TESTING
 ################################################################################'''
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import confusion_matrix, classification_report, precision_recall_fscore_support
+# Graphing 
+from matplotlib import pyplot
 
-def test_model(model):
+def test_model(model, start_time):
     ''' Testing on unseen positive/negative sequences '''
     # load test data
     testX, actual, index_map = load_test_dataset()
@@ -164,20 +161,63 @@ def test_model(model):
     # label as 1 if predicted probability of apnea event > threshold, else label as 0
     predicted = np.where(ones > float(threshold), 1, 0)
     
-    diff = np.zeros(num_test, dtype=np.int64)
+    diff = []
     for i in range(num_test):
-        if predicted[i] == 0 != actual[i]:
-            diff[i] = index_map[i]
-            index_map[i]
+        # if wrong prediction, mark timestamp in the format hh:mm:ss
+        if predicted[i] != actual[i]:
+            apnea_offset = timedelta(seconds=index_map[i])
+            start_time = str(start_time).split(' ')[1]
+            start_time = datetime.strptime(str(start_time), '%H:%M:%S')
+           
+            # compute timestamp of prediction, convert to string 
+            time = (start_time + apnea_offset).strftime('%H:%M:%S')
+            # append timestamp
+            diff.append(time)                
+        else:  
+            # no need to mark timestamp if prediction is correct  
+            diff.append("")              
             
 
     # make dimensions match 
     actual      = np.expand_dims(actual, axis=1)
     predicted   = np.expand_dims(predicted, axis=1)
-    diff        = np.expand_dims(diff, axis=1)
+    diff        = np.asarray(diff, dtype="str").expand_dims(diff, axis=1)
     # evaluate accuracy, confusion matrix 
     summarize_results(probabilities, actual, predicted, diff)
 
+
+def load_test_dataset():
+    index_map = []
+    ''' Load input test vector '''
+    actual = np.array([], dtype=np.int64)
+    testX = np.array([], dtype=np.float64).reshape(0, int(timesteps))
+    
+    # Load test files 
+    for label in labels:
+        path = test_path+label
+        files = os.listdir(path)
+        for i in range(len(files)):
+
+            file = files[i]
+            
+            # parse seconds (format xxx.xxx)
+            time = re.search(r'\[(.*?)\]', file).group(1)
+            time = time.split(".")[:2]
+            time = ".".join(time)   
+
+            # convert seconds to datetime format hh:mm:yy, store 
+            time = timedelta(seconds=seconds)  
+            index_map.append(time)             
+
+            # Append test input to vector 
+            sample  = np.loadtxt(path+file,delimiter="\n", dtype=np.float64)
+            testX   = np.vstack((testX, sample))
+            # Append ground truth label to actual vector 
+            actual  = np.hstack((actual, labels[label]))  
+
+    index_map = dict(enumerate(index_map))
+    testX = np.expand_dims(testX, axis=2) 
+    return testX, actual, index_map
 
 def summarize_results(probabilities, actual, predicted, diff):
     ''' Save predictions, confusion matrix to file '''
@@ -207,52 +247,28 @@ def summarize_results(probabilities, actual, predicted, diff):
                          'false_neg':fn})
     
     predictions_and_labels = np.hstack((probabilities, predicted, actual, diff))
+
     # save to output file 
-    with open(f'{pred_path}predictions_{apnea_type}_v1.txt', "a") as out:
-        np.savetxt(out, predictions_and_labels, delimiter='\t',fmt='%1.4f', \
+    with open(f'{pred_path}predictions_{apnea_type}.csv', "w") as out:
+        np.savetxt(out, predictions_and_labels, delimiter=',',fmt='%s', \
             header="prob_neg,prob_pos,predicted,actual,timestamp")
     out.close()
-    
-
-def load_test_dataset():
-    index_map = []
-    ''' Load input test vector '''
-    actual = np.array([], dtype=np.int64)
-    testX = np.array([], dtype=np.float64).reshape(0, int(timesteps))
-    
-    # Load test files 
-    for label in labels:
-        path = test_path+label
-        files = os.listdir(path)
-        for i in range(len(files)):
-
-            file = files[i]
-            
-            time = re.search(r'\[(.*?)\]', file).group(1)
-            index_map.append(float(time)) # map row num in X matrix to time 
-
-            # print('Processing test file:', file)
-            sample  = np.loadtxt(path+file,delimiter="\n", dtype=np.float64)
-            testX   = np.vstack((testX, sample))
-            # Append ground truth label to actual vector 
-            actual  = np.hstack((actual, labels[label]))  
-
-    index_map = dict(enumerate(index_map))
-    # print(index_map)
-    testX = np.expand_dims(testX, axis=2) 
-    return testX, actual, index_map
 
 
 def get_num_files(path):
     return len(os.listdir(path))
 
+# Parses start time of patient spectrogram recording 
 def parse_record_start_times(info_path, apnea_type):
-    df = pd.read_csv(f"{info_path}record_start_times.csv",header=0)
+    df = pd.read_csv(f"{info_path}record_start_times.csv",header=0,index_col=False)
+    # get excerpt number 
     excerpt = re.search(r'(\d+)$', apnea_type).group(1)
+    # get start_time value 
     df = df[(df['data'] == str(data)) & (df['excerpt'] == int(excerpt))]
-    start_time = df["start_time"]
+    start_time = df["start_time"].item()
+    # convert string to datetime, format is hh:mm:ss
+    start_time = datetime.strptime(start_time, '%H:%M:%S')
     return start_time
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -275,8 +291,8 @@ if __name__ == "__main__":
     threshold = args.threshold
     labels ={'positive/':1, 'negative/':0}
 
-    for i in [25,27]:
-        apnea_type = f"{args.apnea_type}{i}"
+    for i in [1,2,3,4,5,6,7,8,9]:
+        apnea_type = f"{args.apnea_type}_excerpt{i}"
         print(f"Processing {apnea_type}")
  
         raw_path =      f"../{data}/RAW/raw_{apnea_type}/"
