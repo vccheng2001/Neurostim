@@ -1,13 +1,14 @@
-'''
-preprocessing.py
+''' 
+This program makes sleep apnea predictions on three medical datasets: DREAMS,
+University of Dublin (ucddb), and MIT-BIH data. 
+    1) preprocesses data 
+    2) trains
+    3) tests on unseen data 
 
-This program preprocesses raw files into training data,
-sorted by positive/negative sequences. 
-
-params: <data> <apnea_type>, <timesteps> 
-Example: python3 dreams preprocessing.py osa 160
+    Requirements: tensorflow 2.0+, python3
+    Run python3 apnea.py -h/--help for command line arguments and usage details
 '''
-import glob
+
 import pandas as pd 
 import os
 import csv
@@ -16,6 +17,7 @@ import shutil
 import argparse
 import re 
 from datetime import datetime, timedelta
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 def main():
     preprocess()
@@ -28,6 +30,7 @@ def main():
 #                               PREPROCESSING 
 ################################################################################'''
 def preprocess():
+    ''' Preprocesses and organizes raw data into train data, test data'''
     initialize_directories()
     for label in labels:
         setup_train_data(raw_path, label)
@@ -45,10 +48,10 @@ def initialize_directories():
         init_dir(test_path+label) # Comment out if sliding window
 
 def setup_train_data(raw_path,label):
-    '''Preprocesses raw data into train data'''
+    ''' performs data cleaning, train-test-split '''
     dirs = raw_path + label
     files = os.listdir(dirs) 
-    num_train = len(files)* 0.8 # use 80% for train
+    num_train = len(files) * train_frac # use 80% for train
 
     # Read each file 
     i = 0
@@ -70,8 +73,9 @@ def setup_train_data(raw_path,label):
             os.remove(file_path)
             break
         i+=1
-# Initializes directory
+
 def init_dir(path): 
+    ''' initialize directory '''
     if os.path.isdir(path): shutil.rmtree(path)
     if not os.path.isdir(path):
         print("Making directory.... " + path)
@@ -81,10 +85,7 @@ def init_dir(path):
 #                              TRAINING
 ################################################################################'''
 
-import os, sys
 import numpy as np
-from numpy import mean, std, dstack 
-from pandas import read_csv
 
 # Keras LSTM model 
 import tensorflow.keras as keras 
@@ -96,8 +97,7 @@ from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
 from tensorflow.keras import optimizers 
 
 def train_model():
-    ''' Univariate LSTM model 
-        1 hidden layer, binary output
+    ''' fits data to univariate LSTM model with 1 hidden layer, binary output
     '''
     trainX, trainy = load_train_dataset() 
     n_outputs = trainy.shape[1]
@@ -153,7 +153,7 @@ from matplotlib import pyplot
 def test_model(model, start_time):
     ''' Testing on unseen positive/negative sequences '''
     # load test data
-    testX, actual, index_map = load_test_dataset()
+    testX, actual, file_map = load_test_dataset()
     # get predicted class
     probabilities = model.predict(testX)
     num_test = len(probabilities)
@@ -161,33 +161,36 @@ def test_model(model, start_time):
     # label as 1 if predicted probability of apnea event > threshold, else label as 0
     predicted = np.where(ones > float(threshold), 1, 0)
     
-    diff = []
+    pred_time = []
     for i in range(num_test):
         # if wrong prediction, mark timestamp in the format hh:mm:ss
         if predicted[i] != actual[i]:
-            apnea_offset = timedelta(seconds=index_map[i])
+            # start time of patient recording
             start_time = str(start_time).split(' ')[1]
             start_time = datetime.strptime(str(start_time), '%H:%M:%S')
-           
-            # compute timestamp of prediction, convert to string 
-            time = (start_time + apnea_offset).strftime('%H:%M:%S')
-            # append timestamp
-            diff.append(time)                
+            # offset from start of patient recording in hh:mm:ss
+            apnea_offset = file_map[i]
+            # compute absolute timestamp of prediction in hh:mm:ss format
+            prediction_time = (start_time + apnea_offset).strftime('%H:%M:%S')
+            pred_time.append(prediction_time)
+        
         else:  
             # no need to mark timestamp if prediction is correct  
-            diff.append("")              
+            pred_time.append("")              
             
 
     # make dimensions match 
     actual      = np.expand_dims(actual, axis=1)
     predicted   = np.expand_dims(predicted, axis=1)
-    diff        = np.asarray(diff, dtype="str").expand_dims(diff, axis=1)
+    pred_time = np.asarray(pred_time)
+    pred_time   = np.expand_dims(pred_time, axis=1)
+
     # evaluate accuracy, confusion matrix 
-    summarize_results(probabilities, actual, predicted, diff)
+    summarize_results(probabilities, actual, predicted, pred_time)
 
 
 def load_test_dataset():
-    index_map = []
+    file_map = []
     ''' Load input test vector '''
     actual = np.array([], dtype=np.int64)
     testX = np.array([], dtype=np.float64).reshape(0, int(timesteps))
@@ -196,18 +199,17 @@ def load_test_dataset():
     for label in labels:
         path = test_path+label
         files = os.listdir(path)
-        for i in range(len(files)):
-
-            file = files[i]
+        for file in files:
             
-            # parse seconds (format xxx.xxx)
-            time = re.search(r'\[(.*?)\]', file).group(1)
-            time = time.split(".")[:2]
-            time = ".".join(time)   
+            # filename encodes the # seconds since start of patient recording
+            # parse seconds (format xxx.xxx) 
+            apnea_offset_sec = re.search(r'\[(.*?)\]', file).group(1)
+            apnea_offset_sec = apnea_offset_sec.split(".")[:2]
+            apnea_offset_sec = ".".join(apnea_offset_sec)  
 
-            # convert seconds to datetime format hh:mm:yy, store 
-            time = timedelta(seconds=seconds)  
-            index_map.append(time)             
+            # convert seconds to datetime format hh:mm:yy, store into file_map
+            apnea_offset = timedelta(seconds=float(apnea_offset_sec))
+            file_map.append(apnea_offset)            
 
             # Append test input to vector 
             sample  = np.loadtxt(path+file,delimiter="\n", dtype=np.float64)
@@ -215,40 +217,37 @@ def load_test_dataset():
             # Append ground truth label to actual vector 
             actual  = np.hstack((actual, labels[label]))  
 
-    index_map = dict(enumerate(index_map))
+    file_map = dict(enumerate(file_map))
     testX = np.expand_dims(testX, axis=2) 
-    return testX, actual, index_map
+    return testX, actual, file_map
 
-def summarize_results(probabilities, actual, predicted, diff):
+def summarize_results(probabilities, actual, predicted, pred_time):
     ''' Save predictions, confusion matrix to file '''
+
+    # precision, recall, fscore, support 
     p, r, f, s = precision_recall_fscore_support(actual, predicted, labels=[0,1])
+    # true positives, true negatives, false positives, false negatives 
     tn, fp, fn, tp = confusion_matrix(actual, predicted, labels=[0,1]).ravel()
+    # append scores as row to csv log 
     with open(f"{info_path}results.csv", 'a', newline='\n') as csvfile:
-        fieldnames = [  'dataset','apnea_type', 'num_pos_train','num_neg_train',\
-                        'precision_1','precision_0','recall_1','recall_0','f1_1','f1_0',\
+        fieldnames = [  'dataset',      'apnea_type',   'num_pos_train',    'num_neg_train',\
+                        'precision_1',  'precision_0',  'recall_1', 'recall_0',  'f1_1', 'f1_0',\
                         'support_1','support_0','true_pos','true_neg','false_pos','false_neg']
 
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writerow({'dataset': data,
                          'apnea_type':apnea_type,
-                         'num_pos_train': get_num_files(train_path+'positive/'),
-                         'num_neg_train': get_num_files(train_path+'negative/'),
-                         'precision_1': p[1],
-                         'precision_0':p[0],
-                         'recall_1':r[1],
-                         'recall_0':r[0],
-                         'f1_1':r[1],
-                         'f1_0':r[0],
-                         'support_1':s[1],
-                         'support_0':s[0],
-                         'true_pos': tp,
-                         'true_neg':tn,
-                         'false_pos':fp,
-                         'false_neg':fn})
+                         'num_pos_train':get_num_files(train_path+'positive/'),
+                         'num_neg_train':get_num_files(train_path+'negative/'),
+                         'precision_1'  :p[1], 'precision_0'  :p[0],
+                         'recall_1'     :r[1], 'recall_0'     :r[0],
+                         'f1_1'         :r[1], 'f1_0'         :r[0],
+                         'support_1'    :s[1], 'support_0'    :s[0],
+                         'true_pos'     :tp,   'true_neg'     :tn,
+                         'false_pos'    :fp,   'false_neg'    :fn})
     
-    predictions_and_labels = np.hstack((probabilities, predicted, actual, diff))
-
-    # save to output file 
+    predictions_and_labels = np.hstack((probabilities, predicted, actual))#, pred_time))
+    # save prediction to output file 
     with open(f'{pred_path}predictions_{apnea_type}.csv', "w") as out:
         np.savetxt(out, predictions_and_labels, delimiter=',',fmt='%s', \
             header="prob_neg,prob_pos,predicted,actual,timestamp")
@@ -256,10 +255,11 @@ def summarize_results(probabilities, actual, predicted, diff):
 
 
 def get_num_files(path):
+    ''' return number of files in a directory '''
     return len(os.listdir(path))
 
-# Parses start time of patient spectrogram recording 
 def parse_record_start_times(info_path, apnea_type):
+    ''' parses start time of spectrogram recording corresponding to current excerpt '''
     df = pd.read_csv(f"{info_path}record_start_times.csv",header=0,index_col=False)
     # get excerpt number 
     excerpt = re.search(r'(\d+)$', apnea_type).group(1)
@@ -270,19 +270,23 @@ def parse_record_start_times(info_path, apnea_type):
     start_time = datetime.strptime(start_time, '%H:%M:%S')
     return start_time
 
+
+
 if __name__ == "__main__":
+    ''' parses command line arguments, runs main() '''
     parser = argparse.ArgumentParser()
-    parser.add_argument("-d", "--data",  help="specify dataset (dreams, dublin, or mit)")
-    parser.add_argument("-a", "--apnea_type",help="specify excerpt to use")
-    parser.add_argument("-t", "--timesteps", help="specify length of sequence")
-    parser.add_argument("-ep", "--epochs", help="specify number of epochs to train")
-    parser.add_argument("-b", "--batch_size", help="specify batch size")
-    parser.add_argument("-th", "--threshold", help="specify fraction between 0 and 1. if the predicted probability \
-                                     is greater than this threshold then an apnea event is predicted.")
+    parser.add_argument("-d", "--data",         help="specify dataset (dreams, dublin, or mit)")
+    parser.add_argument("-a", "--apnea_type",   help="specify excerpt to use")
+    parser.add_argument("-t", "--timesteps",    help="specify length of sequence")
+    parser.add_argument("-ep", "--epochs",      help="specify number of epochs to train")
+    parser.add_argument("-b", "--batch_size",   help="specify batch size")
+    parser.add_argument("-th", "--threshold",   help="specify fraction between 0 and 1.\
+    if the predicted probability is greater than this threshold then an apnea event is predicted.")
+
+    # parse args 
     args = parser.parse_args()
 
     # store args 
-
     data = args.data
     apnea_type = args.apnea_type
     timesteps = args.timesteps
@@ -290,6 +294,7 @@ if __name__ == "__main__":
     batch_size =  args.batch_size
     threshold = args.threshold
     labels ={'positive/':1, 'negative/':0}
+    train_frac = 0.8 # default ratio for train-test-split
 
     for i in [1,2,3,4,5,6,7,8,9]:
         apnea_type = f"{args.apnea_type}_excerpt{i}"
@@ -301,7 +306,6 @@ if __name__ == "__main__":
         model_path =    f"../{data}/MODELS/"
         pred_path =     f"../{data}/PREDICTIONS/"
         info_path =     f"../info/"
-        start_time = parse_record_start_times(info_path, apnea_type)
-        num_files = {}
-        index_map = []
+        # timestamp of recording start time
+        start_time =    parse_record_start_times(info_path, apnea_type)
         main()
