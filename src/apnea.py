@@ -150,6 +150,8 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import confusion_matrix, classification_report, precision_recall_fscore_support
 # Graphing 
 from matplotlib import pyplot
+from sklearn.metrics import roc_curve
+from sklearn.metrics import roc_auc_score
 
 def test_model(model, start_time):
     ''' Testing on unseen positive/negative sequences '''
@@ -161,6 +163,19 @@ def test_model(model, start_time):
     ones = probabilities[0:,1]
     # label as 1 if predicted probability of apnea event > threshold, else label as 0
     predicted = np.where(ones > float(threshold), 1, 0)
+
+    # calculate scores
+    # auc = roc_auc_score(testy, ones)
+    # calculate roc curves
+    # fpr, tpr, _ = roc_curve(testy, ones)
+    # plot the roc curve for the model
+    # pyplot.plot(fpr, tpr, linestyle='--', label=ROC)
+    # # axis labels
+    # pyplot.xlabel('False Positive Rate')
+    # pyplot.ylabel('True Positive Rate')
+    # # show the legend
+    # pyplot.legend()
+    # show the plot    
     
     pred_time = []
     for i in range(num_test):
@@ -298,18 +313,16 @@ if __name__ == "__main__":
     batch_size  = args.batch_size
     threshold   = args.threshold
     labels      = {'positive/':1, 'negative/':0}
-    train_frac  = 0.65 # default ratio for train-test-split
+    train_frac  = 0.7 # default ratio for train-test-split
 
     print(f"Processing {data}: {apnea_type}_{excerpt}_v1")
 
-    excerpts = [1,2,3,4,5,6,7,8] # set manually if running >1 excerpt 
-    for excerpt in excerpts:
-        raw_path =      f"../{data}/RAW/{apnea_type}_{excerpt}/"
-        train_path =    f"../{data}/TRAIN/{apnea_type}_{excerpt}/"
-        test_path =     f"../{data}/TEST/{apnea_type}_{excerpt}/"
-        model_path =    f"../{data}/MODELS/"
-        pred_path =     f"../{data}/PREDICTIONS/"
-        info_path =     f"../info/"
-        # timestamp of recording start time
-        start_time =    parse_patient_start_times(apnea_type, excerpt)
-        main()
+    raw_path =      f"../{data}/RAW/{apnea_type}_{excerpt}/"
+    train_path =    f"../{data}/TRAIN/{apnea_type}_{excerpt}/"
+    test_path =     f"../{data}/TEST/{apnea_type}_{excerpt}/"
+    model_path =    f"../{data}/MODELS/"
+    pred_path =     f"../{data}/PREDICTIONS/"
+    info_path =     f"../info/"
+    # timestamp of recording start time
+    start_time =    parse_patient_start_times(apnea_type, excerpt)
+    main()
