@@ -10,8 +10,9 @@
 ## End to End Apnea Prediction 
  
 
-# Args: <data>, <apnea_type>, <excerpt>, <timesteps>, <epochs>, <batch_size>, <prediction_threshold>
-# Run python3 apnea.py -h/--help for detailed arguments information 
+Args: data, apnea_type, excerpt, timesteps, epochs, batch_size, prediction_threshold
+
+Run python3 apnea.py -h/--help for detailed arguments information 
 
 
 
