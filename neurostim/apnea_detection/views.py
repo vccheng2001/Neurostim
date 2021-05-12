@@ -21,6 +21,25 @@ def home(request):
     return render(request, "apnea_detection/home.html", context=context)
 
 
+@login_required
+def setup(request):
+    context = {}
+
+    print("SETUPPPPPPPP")
+    return render(request, "apnea_detection/setup.html", context=context)
+
+
+@login_required
+def normalization(request):
+    context = {}
+    print("NORMMMM")
+    return render(request, "apnea_detection/normalization.html", context=context)
+
+
+@login_required
+def prediction(request):
+    context = {}
+    return render(request, "apnea_detection/prediction.html", context=context)
 
 #####################################################################
 #                     User Registration

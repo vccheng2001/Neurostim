@@ -8,4 +8,9 @@ urlpatterns =[
     path('logout/', views.logout_action, name="logout"),
     # home
     path('home', views.home, name="home"),
+
+    # pipeline
+    path('setup/', views.logout_action, name="setup"),
+    path('normalization/', views.logout_action, name="normalization"),
+    path('prediction/', views.logout_action, name="prediction")
 ]

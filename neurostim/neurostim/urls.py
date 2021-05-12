@@ -11,5 +11,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.login_action, name='login'),
     path('apnea_detection/', include('apnea_detection.urls'), name="apnea_detection"),
-
+    
 ]
