@@ -1,0 +1,27 @@
+
+{% extends "apnea_detection/base.html" %}
+
+{% block nav %}
+{% endblock %}
+
+{% block heading %}
+    <div class="jumbotron text-center">
+        <h1 class="display-4">Register</h1>
+    </div>
+    
+{% endblock %}
+
+<!-- User Registration form -->
+{% block body %}
+<div class="container">
+    <form method="post" action="{% url 'register' %}">
+        <table>
+            {{ form }}
+        </table>
+        {% csrf_token %}
+        <hr>
+        <button type="submit" class="btn btn-success">Submit</button>
+        <a href="{% url 'login' %}" class="btn btn-secondary">Login</a>
+    </form>
+</div>
+{% endblock %}
