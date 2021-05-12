@@ -12,27 +12,28 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 
 # forms 
-from apnea_detection.forms import LoginForm, RegisterForm
-
+from apnea_detection.forms import LoginForm, RegisterForm, SetupForm, NormalizationForm
 
 @login_required
 def home(request):
     context = {}
+    if "setup" in request.path:
+        print("setup")
+    else:
+        print("not setup")
     return render(request, "apnea_detection/home.html", context=context)
-
 
 @login_required
 def setup(request):
-    context = {}
-
-    print("SETUPPPPPPPP")
+    form = SetupForm()
+    context = {'form': form}
     return render(request, "apnea_detection/setup.html", context=context)
 
 
 @login_required
 def normalization(request):
-    context = {}
-    print("NORMMMM")
+    form = NormalizationForm()
+    context = {'form': form}
     return render(request, "apnea_detection/normalization.html", context=context)
 
 

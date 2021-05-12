@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.core.exceptions import ValidationError
+from apnea_detection.models import Setup, Normalization
 
 # max image size 
 MAX_UPLOAD_SIZE = 2500000
@@ -78,3 +79,22 @@ class RegisterForm(forms.Form):
         # We must return the cleaned data we got from the cleaned_data
         # dictionary
         return username
+
+
+# Normalization
+class SetupForm(forms.ModelForm):
+    dataset = forms.CharField(widget=forms.TextInput)
+    apnea_type = forms.CharField(widget=forms.TextInput)
+    excerpt = forms.IntegerField(widget=forms.NumberInput)
+    class Meta:
+        model = Setup
+        exclude = []
+
+# Normalization
+class NormalizationForm(forms.ModelForm):
+    norm = forms.CharField(widget=forms.TextInput)
+    scale  = forms.IntegerField(widget=forms.NumberInput)
+    
+    class Meta:
+        model = Normalization
+        exclude = []

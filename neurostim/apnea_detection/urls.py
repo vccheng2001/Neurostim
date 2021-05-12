@@ -10,7 +10,7 @@ urlpatterns =[
     path('home', views.home, name="home"),
 
     # pipeline
-    path('setup/', views.logout_action, name="setup"),
-    path('normalization/', views.logout_action, name="normalization"),
-    path('prediction/', views.logout_action, name="prediction")
+    path('setup/', views.setup, name="setup"),
+    path('normalization/', views.normalization, name="normalization"),
+    path('prediction/', views.prediction, name="prediction")
 ]

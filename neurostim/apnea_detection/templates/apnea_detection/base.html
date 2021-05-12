@@ -32,14 +32,31 @@
 
 
 		{% endblock %}
-
         
 		{% block heading %}
+		{% endblock %}
+
+		{% block tabs %}
+			<div class="container">
+  
+			<!-- Nav tabs -->
+			<ul class="nav nav-tabs">
+			<li class="nav-item">
+			  <a class="nav-link" href="{% url 'setup' %}">1. Setup</a>
+			</li>
+			<li class="nav-item">
+			  <a class="nav-link"  href="{% url 'normalization' %}">2. Data Normalization</a>
+			</li>
+			<li class="nav-item">
+			  <a class="nav-link" href="{% url 'prediction' %}">3. Run ML model </a>
+			</li>
+			</ul>
 		{% endblock %}
 
 
        
 		{% block body %}
+		
 		{% endblock %}
   
 	</body>
