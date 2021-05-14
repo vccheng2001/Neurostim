@@ -23,7 +23,7 @@ class Setup(models.Model):
     apnea_type = models.CharField(max_length = 20,
                                 choices = APNEA_TYPES,
                                 default = "OSA")
-    excerpt = models.IntegerField(default=1)
+    excerpt = models.PositiveIntegerField(default=1)
 
     
     def __str__(self):  
@@ -39,8 +39,8 @@ class Normalization(models.Model):
     norm = models.CharField(max_length = 20,
                                 choices = NORMALIZATION_TYPES,
                                 default = "Linear") 
-    scale = models.IntegerField(default=1)
-
-    
+    slope_threshold= models.PositiveIntegerField(default=1)
+    scale_factor_low = models.PositiveIntegerField(default=1)
+    scale_factor_high = models.PositiveIntegerField(default=1) 
     def __str__(self):  
         return f"Normalization factor: {self.norm}"

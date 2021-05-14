@@ -1,0 +1,12 @@
+data,apnea_type,num_pos_train,num_neg_train,f1_1,f1_0,true_pos,true_neg,false_pos,false_neg
+dreams,osa_excerpt9,97,719,0.76,1.0,19,179,0,6
+dublin,all_ucddb7,58,396,0.1428,1.0,2,98,0,12
+dreams,osa_excerpt1,144,445,0.3142,1.0,11,111,0,24
+dreams,osa_excerpt1,144,445,0.2571,1.0,9,111,0,26
+dreams,osa_excerpt1,144,445,0.2857,1.0,10,111,0,25
+dreams,osa_excerpt1,144,445,0.1714,1.0,6,111,0,29
+dreams,osa_excerpt1,144,445,0.3143,1.0,11,111,0,24
+dreams,osa_excerpt1,144,445,0.2286,1.0,8,111,0,27
+dreams,osa_excerpt3,266,555,0.5151,0.9927,34,136,1,32
+dreams,osa_excerpt1,144,445,0.8857,0.9909,31,110,1,4
+dreams,osa_excerpt2,52,474,0.0,1.0,0,117,0,13

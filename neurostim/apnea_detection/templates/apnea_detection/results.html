@@ -3,16 +3,13 @@
 
 {% block heading %}
 <div class="jumbotron text-center">
-    <h1 class="display-4">Prediction</h1>
+    <h1 class="display-4">Results</h1>
 </div>
 {% endblock %}
 
 {% block body %}
 <div class="container">
-    <div class="progress">
-        <div class="progress-bar" style="width: 60%">
-            60%
-        </div>
-    </div>
+<br>
+{{results_html|safe}}
 </div>
 {% endblock %}

@@ -83,18 +83,13 @@ class RegisterForm(forms.Form):
 
 # Normalization
 class SetupForm(forms.ModelForm):
-    dataset = forms.CharField(widget=forms.TextInput)
-    apnea_type = forms.CharField(widget=forms.TextInput)
-    excerpt = forms.IntegerField(widget=forms.NumberInput)
+  
     class Meta:
         model = Setup
         exclude = []
 
 # Normalization
 class NormalizationForm(forms.ModelForm):
-    norm = forms.CharField(widget=forms.TextInput)
-    scale  = forms.IntegerField(widget=forms.NumberInput)
-    
     class Meta:
         model = Normalization
         exclude = []

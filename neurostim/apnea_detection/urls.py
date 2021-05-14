@@ -12,5 +12,6 @@ urlpatterns =[
     # pipeline
     path('setup/', views.setup, name="setup"),
     path('normalization/', views.normalization, name="normalization"),
-    path('prediction/', views.prediction, name="prediction")
+    path('prediction/', views.prediction, name="prediction"),
+    path('results/', views.results, name="results")
 ]

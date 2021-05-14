@@ -14,17 +14,20 @@ from django.contrib.auth import authenticate, login, logout
 # forms 
 from apnea_detection.forms import LoginForm, RegisterForm, SetupForm, NormalizationForm
 
+# file i/o
+import pandas as pd
+
 @login_required
 def home(request):
     context = {}
-    if "setup" in request.path:
-        print("setup")
-    else:
-        print("not setup")
+    
     return render(request, "apnea_detection/home.html", context=context)
 
 @login_required
 def setup(request):
+    if request.method == "POST":
+        form = SetupForm(request.POST)
+        form.save()
     form = SetupForm()
     context = {'form': form}
     return render(request, "apnea_detection/setup.html", context=context)
@@ -32,6 +35,9 @@ def setup(request):
 
 @login_required
 def normalization(request):
+    if request.method == "POST":
+        form = NormalizationForm(request.POST)
+        form.save()
     form = NormalizationForm()
     context = {'form': form}
     return render(request, "apnea_detection/normalization.html", context=context)
@@ -41,6 +47,17 @@ def normalization(request):
 def prediction(request):
     context = {}
     return render(request, "apnea_detection/prediction.html", context=context)
+
+
+@login_required
+def results(request):
+    context = {}
+    cols = ["data","apnea_type","num_pos_train","num_neg_train",\
+            "f1_1","f1_0","true_pos","true_neg","false_pos","false_neg"]
+
+    results_df = pd.read_csv("apnea_detection/results.csv", names=cols)
+    context["results_html"] = results_df.to_html()
+    return render(request, "apnea_detection/results.html", context=context)
 
 #####################################################################
 #                     User Registration

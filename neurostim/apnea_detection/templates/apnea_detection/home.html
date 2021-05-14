@@ -3,10 +3,35 @@
 
 {% block heading %}
 <div class="jumbotron text-center">
-    <h1 class="display-4">Home</h1>
+    <h1 class="display-4">Apnea Detection Pipeline</h1>
 </div>
 {% endblock %}
 
+{% block tabs %}
+{% endblock %}
+
+
+
 {% block body %}
-<body>
+<div class="container">
+<p>
+  This is a pipeline to detect and predict apnea events (either OSA or OSAHS) 
+  using a Long-Short Term Memory (LSTM) neural network.  
+  The model is trained on positive/negative sequences of breathing data, sampled
+  at 8 hz (8 samples/second). Currently, the three datasets supported are the 
+  DREAMS, MIT-BIH, and University of Dublin database.  
+</p>
+<h4>Steps to run apnea detection pipline</h4>
+<ol>
+  <li>Select excerpt, dataset, apnea type </li>
+  <li>Select data normalization parameters </li>
+  <li>Run machine learning model  </li>
+</ol>
+
+<br><br>
+<div class="center">
+  <a class="btn btn-primary" href="{% url 'setup' %}" role="button">Begin Apnea Detection Pipeline</a>
+</div>
+</div>
+
 {% endblock %}
