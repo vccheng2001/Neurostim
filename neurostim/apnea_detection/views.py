@@ -17,15 +17,20 @@ from apnea_detection.forms import LoginForm, RegisterForm, SetupForm
 # file i/o
 import pandas as pd
 import os
+import csv
+from datetime import date, datetime
+import pytz
 
+# directories 
 ROOT_DIR = os.getcwd() 
 DATA_DIR = os.path.join(ROOT_DIR, "data")
-
+INFO_DIR = os.path.join(ROOT_DIR, "info")
+SAMPLING_RATE = 8 # default
 
 @login_required
 def home(request):
+    print(datetime.now())
     context = {}
-    
     return render(request, "apnea_detection/home.html", context=context)
 
 @login_required
@@ -41,7 +46,7 @@ def setup(request):
                 # display success message
                 context["message"] = f"Successfully saved normalized file to {normalized_file}."
                 # return new form 
-                context = {'form': SetupForm()} 
+                context['form'] =  SetupForm()
                 return render(request, "apnea_detection/setup.html", context=context)
             except Exception as err:
                 # else throw error 
@@ -65,13 +70,37 @@ def normalize(form):
 
     # read unnormalized file
     unnormalized_file = f"{DATA_DIR}/{dataset}/preprocessing/excerpt{excerpt}/filtered_8hz.txt"
-    df = pd.read_csv(unnormalized_file, delimiter=",")
+    df = pd.read_csv(unnormalized_file, delimiter=',')
+    
     # perform linear scaling
     df["Value"] = df["Value"] * scale_factor_high
+    
     # write normalized output file
     normalized_file = unnormalized_file.split('.')[0] + f"_{norm}_{scale_factor_high}" + ".norm"
+
+    normalized_file_relpath = os.path.relpath(normalized_file, ROOT_DIR)
     df.to_csv(normalized_file, index=None, float_format='%.6f')
-    return normalized_file
+    
+    # write new row to log.txt 
+    
+    log_file = f"{INFO_DIR}/log.csv"
+    with open(log_file, 'a', newline='\n') as logs:
+        fieldnames = ['time','DB','patient','samplingRate','action','status','file_folder_Name','parameters']
+        writer = csv.DictWriter(logs, fieldnames=fieldnames)
+        print('Writing row....\n')
+        time_format = '%m/%d/%Y %H:%M %p'
+        writer.writerow({'time': datetime.now(pytz.utc).strftime(time_format),
+                        'DB': dataset,
+                        'patient': excerpt,
+                        'samplingRate': SAMPLING_RATE,
+                        'action': 'DataNormalization',
+                        'file_folder_Name': normalized_file_relpath,
+                        'parameters': f"slope:{slope_threshold}, hFactor:{scale_factor_high}, lFactor:{scale_factor_low}"})
+
+
+
+
+    return normalized_file_relpath
 
 @login_required
 def inference(request):
