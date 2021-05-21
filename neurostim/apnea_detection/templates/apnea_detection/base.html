@@ -41,15 +41,17 @@
   			<!-- Nav tabs -->
 				<ul class="nav nav-tabs">
 				<li class="nav-item">
-				<a class="nav-link" href="{% url 'setup' %}">1. Setup</a>
+				<a class="nav-link" href="{% url 'setup' %}">Setup parameters</a>
 				</li>
 				<li class="nav-item">
-				<a class="nav-link" href="{% url 'prediction' %}">2. Run ML model </a>
+					<a class="nav-link" href="{% url 'train' %}">Train model </a>
 				</li>
 				<li class="nav-item">
-					<a class="nav-link" href="{% url 'results' %}">3. View results</a>
-					</li>
-				</ul>
+				<a class="nav-link" href="{% url 'inference' %}">Make real-time predictions </a>
+				</li>
+				<li class="nav-item">
+					<a class="nav-link" href="{% url 'results' %}">View model results </a>
+				</li>
             </div>
 		{% endblock %}
 

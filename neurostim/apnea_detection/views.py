@@ -30,18 +30,31 @@ def home(request):
 
 @login_required
 def setup(request):
-    print(os.getcwd())
+    context = {}
     if request.method == "POST":
         form = SetupForm(request.POST)
         if form.is_valid():
-            normalize(form.cleaned_data)
-            form.save()
-    form = SetupForm()
-    context = {'form': form}
+            try:
+                # normalize file and save form
+                normalized_file = normalize(form.cleaned_data)
+                form.save()
+                # display success message
+                context["message"] = f"Successfully saved normalized file to {normalized_file}."
+                # return new form 
+                context = {'form': SetupForm()} 
+                return render(request, "apnea_detection/setup.html", context=context)
+            except Exception as err:
+                # else throw error 
+                context["error_heading"] = "Error during normalization step. Please try again."
+                context["error_message"] = err
+                return render(request, "apnea_detection/error.html", context=context)
+    # if GET request
+    context = {'form': SetupForm()} 
     return render(request, "apnea_detection/setup.html", context=context)
 
 ''' Normalizes a file specified by user '''
 def normalize(form):
+    # cleaned form 
     excerpt             = form["excerpt"]
     dataset             = form["dataset"]
     apnea_type          = form["apnea_type"]
@@ -50,19 +63,26 @@ def normalize(form):
     scale_factor_low    = form["scale_factor_low"]
     scale_factor_high   = form["scale_factor_high"]
 
-    file_in = f"{DATA_DIR}/{dataset}/preprocessing/excerpt{excerpt}/filtered_8hz.txt"
-    df = pd.read_csv(file_in, delimiter=",")
+    # read unnormalized file
+    unnormalized_file = f"{DATA_DIR}/{dataset}/preprocessing/excerpt{excerpt}/filtered_8hz.txt"
+    df = pd.read_csv(unnormalized_file, delimiter=",")
     # perform linear scaling
     df["Value"] = df["Value"] * scale_factor_high
-    file_out = file_in.split('.')[0] + f"_{norm}_{scale_factor_high}" + ".norm"
-    df.to_csv(file_out, index=None, float_format='%.6f')
+    # write normalized output file
+    normalized_file = unnormalized_file.split('.')[0] + f"_{norm}_{scale_factor_high}" + ".norm"
+    df.to_csv(normalized_file, index=None, float_format='%.6f')
+    return normalized_file
 
 @login_required
-def prediction(request):
+def inference(request):
+    context = {}
+    return render(request, "apnea_detection/inference.html", context=context)
+
+@login_required
+def train(request):
     context = {}
     # latest 
-    return render(request, "apnea_detection/prediction.html", context=context)
-
+    return render(request, "apnea_detection/train.html", context=context)
 
 @login_required
 def results(request):

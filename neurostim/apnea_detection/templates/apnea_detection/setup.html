@@ -5,6 +5,11 @@
 <div class="jumbotron text-center">
     <h1 class="display-4">Setup</h1>
 </div>
+
+{% if message %} 
+<div class="alert alert-success" role="alert">{{message}}</div> 
+{% endif %}
+
 {% endblock %}
 
 {% block body %}
@@ -15,7 +20,8 @@
         </table>
         {% csrf_token %}
         <hr>
-        <button type="submit" class="btn btn-success">Save</button>
+        <button id="setup-submit" type="submit" class="btn btn-success">Save</button>
     </form>
 </div>
+
 {% endblock %}
