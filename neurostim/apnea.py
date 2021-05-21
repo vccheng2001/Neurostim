@@ -17,9 +17,7 @@ import shutil
 import argparse
 import re 
 from datetime import datetime, timedelta
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-print('python version', sys.version)
 def main():
     preprocess_and_split()
     # Train 
@@ -245,14 +243,14 @@ def summarize_results(probabilities, actual, predicted, pred_time):
     # true positives, true negatives, false positives, false negatives 
     tn, fp, fn, tp = confusion_matrix(actual, predicted, labels=[0,1]).ravel()
     # append scores as row to csv log 
-    with open(f"{info_path}summary_results_v1.csv", 'a', newline='\n') as csvfile:
+    with open(f"{info_path}summary_results.csv", 'a', newline='\n') as csvfile:
         fieldnames = [  'dataset',      'apnea_type',  'excerpt', 'num_pos_train',    'num_neg_train',\
                         'precision_1',  'precision_0',  'recall_1', 'recall_0',  'f1_1', 'f1_0',\
                         'support_1','support_0','true_pos','true_neg','false_pos','false_neg',
                         'num_epochs', 'batch_size']
 
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writerow({'dataset'      :data,
+        writer.writerow({'dataset'      :dataset,
                          'apnea_type'   :apnea_type,
                          'excerpt'      :excerpt,
                          'num_pos_train':get_num_files(train_path+'positive/'),
@@ -267,7 +265,7 @@ def summarize_results(probabilities, actual, predicted, pred_time):
     
     predictions_and_labels = np.hstack((probabilities, predicted, actual, pred_time))
     # save prediction to output file 
-    with open(f'{pred_path}{apnea_type}_{excerpt}_v1.csv', "w") as out:
+    with open(f'{pred_path}{apnea_type}_{excerpt}.csv', "w") as out:
         np.savetxt(out, predictions_and_labels, delimiter=',',fmt='%s', \
             header="prob_neg,prob_pos,predicted,actual,timestamp", comments='')
     out.close()
@@ -283,7 +281,7 @@ def parse_patient_start_times(apnea_type, excerpt):
 
     df = pd.read_csv(f"{info_path}patient_start_times.csv",header=0,index_col=False)
     # get start_time value 
-    df = df[(df['data'] == str(data)) & (df['excerpt'] == int(excerpt))]
+    df = df[(df['data'] == str(dataset)) & (df['excerpt'] == int(excerpt))]
     start_time = df["start_time"].item()
     # convert string to datetime, format is hh:mm:ss
     start_time = datetime.strptime(start_time, '%H:%M:%S')
@@ -294,19 +292,21 @@ def parse_patient_start_times(apnea_type, excerpt):
 if __name__ == "__main__":
     ''' parses command line arguments, runs main() '''
     parser = argparse.ArgumentParser()
-    parser.add_argument("-d", "--data",         help="dataset (dreams, dublin, or mit)")
-    parser.add_argument("-a", "--apnea_type",   help="type of apnea (osa, osahs, or all)")
-    parser.add_argument("-ex","--excerpt",      help="excerpt number to use")
-    parser.add_argument("-t", "--timesteps",    help="length of sequence in timesteps")
-    parser.add_argument("-ep","--epochs",       help="number of epochs to train")
-    parser.add_argument("-b", "--batch_size",   help="batch size")
-    parser.add_argument("-th","--threshold",    help="threshold fraction for predicting positive apnea")
+    parser.add_argument("-d", "--dataset",    default="dreams", help="dataset (dreams, dublin, or mit)")
+    parser.add_argument("-a", "--apnea_type", default="osa",    help="type of apnea (osa, osahs, or all)")
+    parser.add_argument("-ex","--excerpt",    default=1,        help="excerpt number to use")
+    parser.add_argument("-t", "--timesteps",  default=120,      help="length of sequence in timesteps")
+    parser.add_argument("-ep","--epochs",     default=10,       help="number of epochs to train")
+    parser.add_argument("-b", "--batch_size", default=16,       help="batch size")
+    parser.add_argument("-th","--threshold",  default=0.7,      help="threshold fraction for predicting positive apnea")
+    # parser.add_argument('--test', action='store_true', help="only make prediction using existing model")
+
     # parse args 
     args = parser.parse_args()
 
     print(args)
     # store args 
-    data        = args.data
+    dataset     = args.dataset
     apnea_type  = args.apnea_type
     excerpt     = args.excerpt
     timesteps   = args.timesteps
@@ -316,14 +316,14 @@ if __name__ == "__main__":
     labels      = {'positive/':1, 'negative/':0}
     train_frac  = 0.7 # default ratio for train-test-split
 
-    print(f"Processing {data}: {apnea_type}_{excerpt}_v1")
+    print(f"Processing {dataset}: {apnea_type}_{excerpt}")
 
-    raw_path =      f"../{data}/RAW/{apnea_type}_{excerpt}/"
-    train_path =    f"../{data}/TRAIN/{apnea_type}_{excerpt}/"
-    test_path =     f"../{data}/TEST/{apnea_type}_{excerpt}/"
-    model_path =    f"../{data}/MODELS/"
-    pred_path =     f"../{data}/PREDICTIONS/"
-    info_path =     f"../info/"
+    raw_path =      f"./data/{dataset}/postprocessing/RAW/{apnea_type}_{excerpt}/"
+    train_path =    f"./data/{dataset}/postprocessing/TRAIN/{apnea_type}_{excerpt}/"
+    test_path =     f"./data/{dataset}/postprocessing/TEST/{apnea_type}_{excerpt}/"
+    model_path =    f"./saved_models/{dataset}/"
+    pred_path =     f"./predictions/{dataset}/"
+    info_path =     f"./info/"
     # timestamp of recording start time
     start_time =    parse_patient_start_times(apnea_type, excerpt)
     main()

@@ -14,12 +14,12 @@ from django.contrib.auth import authenticate, login, logout
 # forms 
 from apnea_detection.forms import LoginForm, RegisterForm, SetupForm, ModelParamsForm
 
-# file i/o
 import pandas as pd
 import os
 import csv
 from datetime import date, datetime
 import pytz
+from subprocess import Popen, PIPE, STDOUT
 
 # directories 
 ROOT_DIR = os.getcwd() 
@@ -77,7 +77,7 @@ def normalize(form):
     scale_factor_high   = form["scale_factor_high"]
 
     # read unnormalized file
-    unnormalized_file = f"{DATA_DIR}/preprocessing/{dataset}/excerpt{excerpt}/filtered_8hz.txt"
+    unnormalized_file = f"{DATA_DIR}/{dataset}/preprocessing/excerpt{excerpt}/filtered_8hz.txt"
     df = pd.read_csv(unnormalized_file, delimiter=',')
     
     # perform linear scaling
@@ -110,12 +110,14 @@ def normalize(form):
 
 @login_required
 def inference(request):
+
     context = {}
     results_file = f"{INFO_DIR}/results.csv"
     if request.method == "POST":
         form = ModelParamsForm(request.POST)
         if form.is_valid():
             try:
+                run_inference(form.cleaned_data)
                 # save model hyperparameters
                 form.save()
                 # display success message
@@ -134,9 +136,34 @@ def inference(request):
     context = {'form': ModelParamsForm(), 'results': csv_to_html(results_file)} 
     return render(request, "apnea_detection/inference.html", context=context)
 
+''' perform inference using specified model hyperparameters '''
+def run_inference(form):
+
+
+    epochs = form["epochs"]
+    batch_size = form["batch_size"]
+    threshold = form["positive_threshold"]
+ 
+    proc = Popen(["python", "apnea.py", \
+                     "-d", "dreams",
+                     "-a", "osa",
+                     "-ex", "1",
+                     "-t", "120",
+                     "-ep", str(epochs),
+                     "-b", str(batch_size),
+                     "-th", str(threshold)],universal_newlines=True, stdout=PIPE)
+        
+    # while True:
+    #     output = proc.stdout.readline()
+    #     if proc.poll() is not None and output == '':
+    #         break
+    #     if "Epoch" in output:
+    #         print (output.strip())
+    # retval = proc.poll()
+
 @login_required
 def train(request):
-    context = {}    #subprocess.call(apnea.py -)
+    context = {}  
 
     # latest 
     return render(request, "apnea_detection/train.html", context=context)
