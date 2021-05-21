@@ -27,6 +27,11 @@ DATA_DIR = os.path.join(ROOT_DIR, "data")
 INFO_DIR = os.path.join(ROOT_DIR, "info")
 SAMPLING_RATE = 8 # default
 
+''' helper function to convert csv to html '''
+def csv_to_html(file):
+    df = pd.read_csv(file)
+    return df.to_html()
+
 @login_required
 def home(request):
     print(datetime.now())
@@ -36,6 +41,7 @@ def home(request):
 @login_required
 def setup(request):
     context = {}
+    logs_file = f"{INFO_DIR}/log.csv"
     if request.method == "POST":
         form = SetupForm(request.POST)
         if form.is_valid():
@@ -47,6 +53,8 @@ def setup(request):
                 context["message"] = f"Successfully saved normalized file to {normalized_file}."
                 # return new form 
                 context['form'] =  SetupForm()
+                # logs file
+                context['logs'] = csv_to_html(logs_file)
                 return render(request, "apnea_detection/setup.html", context=context)
             except Exception as err:
                 # else throw error 
@@ -54,7 +62,7 @@ def setup(request):
                 context["error_message"] = err
                 return render(request, "apnea_detection/error.html", context=context)
     # if GET request
-    context = {'form': SetupForm()} 
+    context = {'form': SetupForm(), 'logs': csv_to_html(logs_file)} 
     return render(request, "apnea_detection/setup.html", context=context)
 
 ''' Normalizes a file specified by user '''
@@ -98,8 +106,6 @@ def normalize(form):
                         'parameters': f"slope:{slope_threshold}, hFactor:{scale_factor_high}, lFactor:{scale_factor_low}"})
 
 
-
-
     return normalized_file_relpath
 
 @login_required
@@ -119,8 +125,9 @@ def results(request):
     cols = ["data","apnea_type","num_pos_train","num_neg_train",\
             "f1_1","f1_0","true_pos","true_neg","false_pos","false_neg"]
 
-    results_df = pd.read_csv("apnea_detection/results.csv", names=cols)
-    context["results_html"] = results_df.to_html()
+    # render results csv as html
+    results_file = f"{INFO_DIR}/results.csv"
+    context["results"] = csv_to_html(results_file)
     return render(request, "apnea_detection/results.html", context=context)
 
 #####################################################################
