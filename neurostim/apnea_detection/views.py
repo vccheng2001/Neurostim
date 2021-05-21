@@ -19,20 +19,23 @@ import pandas as pd
 import os
 import csv
 from datetime import date, datetime
-import pytz
 from subprocess import Popen, PIPE, STDOUT
+
+# disable debugging info
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 
 # directories 
 ROOT_DIR = os.getcwd() 
 DATA_DIR = os.path.join(ROOT_DIR, "data")
 INFO_DIR = os.path.join(ROOT_DIR, "info")
+MODEL_DIR = os.path.join(ROOT_DIR, "saved_models")
 SAMPLING_RATE = 8 # default
 
 ''' helper function to convert csv to html '''
 def csv_to_html(file):
     # round floats to 3 decimal places
     df = pd.read_csv(file)
-    html = df.to_html(classes='table table-hover', header="true", float_format='%.3f')
+    html = df.to_html(classes='table table-striped table-bordered table-responsive table-sm')
     return html
 
 
@@ -100,7 +103,7 @@ def normalize(form):
         writer = csv.DictWriter(logs, fieldnames=fieldnames)
         print('Writing row....\n')
         time_format = '%m/%d/%Y %H:%M %p'
-        writer.writerow({'time': datetime.now(pytz.utc).strftime(time_format),
+        writer.writerow({'time': datetime.now().strftime(time_format),
                         'DB': dataset,
                         'patient': excerpt,
                         'samplingRate': SAMPLING_RATE,
@@ -120,34 +123,22 @@ def inference(request):
     # most recent setup parameters
     setup_params = Setup.objects.last()
 
-    if request.method == "POST":
-        form = ModelParamsForm(request.POST)
-        if form.is_valid():
-            try:
-                model_params = form.cleaned_data
-                # run_inference(setup_params, model_params)
-                results = get_summary_results(results_file)
-                # save model hyperparameters
-                form.save()
-                # display success message
-                context["message"] = f"Successfully performed inference."
-                context["results"] = results
-                print(type(setup_params))
-                context["setup_params"] = setup_params
-                context["model_params"] = model_params
-                # render new form 
-                # context['form'] =  ModelParamsForm()
-                # results file
-                return render(request, "apnea_detection/inference.html", context=context)
+    try:
+        returncode, stdout, stderr = run(setup_params, None, test=True)
+        results = get_summary_results(results_file)
+        # save model hyperparameters
+        # display success message
+        context["message"] = f"Successfully performed inference."
+        context["results"] = results
+        context["setup_params"] = setup_params
+        return render(request, "apnea_detection/inference.html", context=context)
             
             
-            except Exception as error_message:
-                # else throw error 
-                context["error_heading"] = "Error during inference step. Please try again."
-                context["error_message"] = error_message
-                return render(request, "apnea_detection/error.html", context=context)
-    # if GET request
-    context = {'form': ModelParamsForm()}
+    except Exception as error_message:
+        # else throw error 
+        context["error_heading"] = "Error during inference step. Please try again."
+        context["error_message"] = error_message
+        return render(request, "apnea_detection/error.html", context=context)
     return render(request, "apnea_detection/inference.html", context=context)
 
 
@@ -162,45 +153,91 @@ def get_summary_results(results_file):
 
 
 
-''' perform inference using specified model hyperparameters '''
-def run_inference(setup_params, model_params):
+''' train/testmodel using specified model hyperparameters '''
+def run(setup_params, model_params, test):
 
 
     apnea_type = setup_params.apnea_type
     dataset = setup_params.dataset
     excerpt = setup_params.excerpt
-    epochs = model_params["epochs"]
-    batch_size = model_params["batch_size"]
-    threshold = model_params["positive_threshold"]
+    if model_params:
+        epochs = model_params["epochs"]
+        batch_size = model_params["batch_size"]
+        threshold = model_params["positive_threshold"]
     # run apnea detection script
 
-    proc = Popen(["python", "apnea.py", \
-                     "-d", dataset,
-                     "-a", apnea_type,
-                     "-ex", str(excerpt),
-                     "-t", "120",
-                     "-ep", str(epochs),
-                     "-b", str(batch_size),
-                     "-th", str(threshold)],universal_newlines=True, stdout=PIPE)
+    if test:
+        cmd = ["python", "apnea.py", 
+               "-d", dataset, 
+               "-a", apnea_type,
+               "-ex", str(excerpt),
+               "-t", "120",
+               "-th", str(0.7),
+               "--test"]
+    else:
+        cmd = ["python", "apnea.py", \
+                        "-d", dataset,
+                        "-a", apnea_type,
+                        "-ex", str(excerpt),
+                        "-t", "120",
+                        "-ep", str(epochs),
+                        "-b", str(batch_size)]
 
-    while True:
-        output = proc.stdout.readline()
-        # if done, breakc
-        if proc.poll() is not None and output == '':
-            break
-        if output:
-            print (output.strip())
-    ret = proc.poll()
-    print('return: ', ret)
+    proc = Popen(cmd, universal_newlines=True, 
+                      stdout=PIPE, stderr=PIPE)
+
+    stdout, stderr = proc.communicate()
+    print('stdout of run', stdout, stderr)
+    return proc.returncode, stdout, stderr 
+
+    # while True:
+    #     output = proc.stdout.readline()
+    #     # if done, breakc
+    #     if proc.poll() is not None and output == '':
+    #         break
+    #     if output:
+    #         print (output.strip())
+    # ret = proc.poll()
+    # print('return: ', ret)
 
 
 
 @login_required
 def train(request):
-    context = {}  
+    context = {}
+    results_file = f"{INFO_DIR}/summary_results.csv"
 
-    # latest 
+    # most recent setup parameters
+    # choose from setup params 
+    setup_params = Setup.objects.last()
+
+    if request.method == "POST":
+        form = ModelParamsForm(request.POST)
+        if form.is_valid():
+            try:
+                model_params = form.cleaned_data
+                returncode, stdout, stderr = run(setup_params, model_params, False)
+
+                saved_model_path = stdout
+                # display success message
+                context["message"] = f"Successfully saved trained model to {saved_model_path}"
+                context["setup_params"] = setup_params
+                context["model_params"] = model_params
+              
+                return render(request, "apnea_detection/inference.html", context=context)
+            
+            
+            except Exception as error_message:
+                # else throw error 
+                context["error_heading"] = "Error during training. Please try again."
+                context["error_message"] = error_message
+                return render(request, "apnea_detection/error.html", context=context)
+    # if GET request
+    context = {'form': ModelParamsForm()}
     return render(request, "apnea_detection/train.html", context=context)
+
+
+
 
 @login_required
 def results(request):

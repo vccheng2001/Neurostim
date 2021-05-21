@@ -21,21 +21,6 @@
         <div class="progress-bar" style="width:20%;height:100px"></div>
     </div>
 </div> -->
-
-{% if form %}
-<div class="container">
-    <h4>Select model hyperparameters</h4>
-    <br>
-    <form method="post" action="{% url 'inference' %}">
-        <table>
-            {{ form }}
-        </table>
-        {% csrf_token %}
-        <hr>
-        <button id="inference-submit" type="submit" class="btn btn-primary">Run</button>
-    </form>
-</div>
-{% endif %}
 <br>
 
 

@@ -10,20 +10,26 @@ University of Dublin (ucddb), and MIT-BIH data.
 '''
 
 import pandas as pd 
-import os
+import logging, os
 import csv
 import sys
 import shutil
 import argparse
 import re 
 from datetime import datetime, timedelta
+logging.disable(logging.WARNING) 
 
 def main():
-    preprocess_and_split()
-    # Train 
-    model = train_model()
+    if not test: 
+        preprocess_and_split()
+        model_output_file = train_model()
+        return model_output_file 
     # Test
-    test_model(model, start_time)
+    if test:
+        saved_model_path = f"{model_path}{apnea_type}_{excerpt}"
+        model = keras.models.load_model(saved_model_path)
+        print(model.params)
+        test_model(model, start_time)
 
 '''###############################################################################
 #                               preprocess_and_splitING 
@@ -35,7 +41,7 @@ def preprocess_and_split():
         setup_train_data(raw_path, label)
     for label in labels:
         num_files = get_num_files(raw_path + label)
-        print(f"Parsed {num_files} {label[:-1]} sequences.")
+        # print(f"Parsed {num_files} {label[:-1]} sequences.")
   
 
 def initialize_directories():
@@ -68,7 +74,7 @@ def setup_train_data(raw_path,label):
             if df.shape[0] == int(timesteps):
                 df.to_csv(out_file, index=False, header=None, sep="\n", float_format='%.4f')
         except Exception as e:
-            print(f"Error: {e}")
+            # print(f"Error: {e}")
             os.remove(file_path)
             break
         i+=1
@@ -77,7 +83,7 @@ def init_dir(path):
     ''' initialize directory '''
     if os.path.isdir(path): shutil.rmtree(path)
     if not os.path.isdir(path):
-        print("Making directory.... " + path)
+        # # print("Making directory.... " + path)
         os.mkdir(path)
     
 '''################################################################################
@@ -115,9 +121,11 @@ def train_model():
         metrics=["accuracy"],
     )
     # fit network
-    model.fit(trainX, trainy, epochs=int(epochs), batch_size=int(batch_size))
-    # model.save(f'{model_path}{apnea_type}_{excerpt}.ckpt', overwrite=True)   # Save model 
-    return model
+    model.fit(trainX, trainy, epochs=int(epochs), batch_size=int(batch_size), verbose=0)
+    model_output_path= f"{model_path}{apnea_type}_{excerpt}"
+    model.save(model_output_path, overwrite=True)   # Save model 
+    print(model_output_path)
+    return model_output_path
 
 
 def load_train_dataset():
@@ -158,6 +166,7 @@ def test_model(model, start_time):
     testX, actual, file_map = load_test_dataset()
     # get predicted class
     probabilities = model.predict(testX)
+    print("PREDICTED")
     num_test = len(probabilities)
     ones = probabilities[0:,1]
     # label as 1 if predicted probability of apnea event > threshold, else label as 0
@@ -244,12 +253,13 @@ def summarize_results(probabilities, actual, predicted, pred_time):
     tn, fp, fn, tp = confusion_matrix(actual, predicted, labels=[0,1]).ravel()
     # append scores as row to csv log 
     with open(f"{info_path}summary_results.csv", 'a', newline='\n') as csvfile:
-        cols = ["dataset","apnea_type","excerpt","epochs", "batch_size","num_pos_train","num_neg_train",\
+        cols = ["time", "dataset","apnea_type","excerpt","epochs", "batch_size","num_pos_train","num_neg_train",\
             "f1_1","f1_0","true_pos","true_neg","false_pos","false_neg"]
 
-
+        time_format = '%m/%d/%Y %H:%M %p'
         writer = csv.DictWriter(csvfile, fieldnames=cols)
-        writer.writerow({'dataset'      :dataset,
+        writer.writerow({'time': datetime.now().strftime(time_format),
+                         'dataset'      :dataset,
                          'apnea_type'   :apnea_type,
                          'excerpt'      :excerpt,
                          'epochs'   :epochs,        'batch_size'   :batch_size,
@@ -295,12 +305,12 @@ if __name__ == "__main__":
     parser.add_argument("-ep","--epochs",     default=10,       help="number of epochs to train")
     parser.add_argument("-b", "--batch_size", default=16,       help="batch size")
     parser.add_argument("-th","--threshold",  default=0.7,      help="threshold fraction for predicting positive apnea")
-    # parser.add_argument('--test', action='store_true', help="only make prediction using existing model")
+    parser.add_argument('--test', action='store_true', help="only make prediction using existing model")
 
     # parse args 
     args = parser.parse_args()
 
-    print(args)
+    # print(args)
     # store args 
     dataset     = args.dataset
     apnea_type  = args.apnea_type
@@ -309,10 +319,11 @@ if __name__ == "__main__":
     epochs      = args.epochs
     batch_size  = args.batch_size
     threshold   = args.threshold
+    test        = args.test 
     labels      = {'positive/':1, 'negative/':0}
     train_frac  = 0.8 # default ratio for train-test-split
 
-    print(f"Processing {dataset}: {apnea_type}_{excerpt}")
+    # print(f"Processing {dataset}: {apnea_type}_{excerpt}")
 
     raw_path =      f"./data/{dataset}/postprocessing/RAW/{apnea_type}_{excerpt}/"
     train_path =    f"./data/{dataset}/postprocessing/TRAIN/{apnea_type}_{excerpt}/"
