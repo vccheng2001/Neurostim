@@ -3,16 +3,31 @@
 
 {% block heading %}
 <div class="jumbotron text-center">
-    <h1 class="display-4">Inference</h1>
+    <h1 class="display-4">Make predicions</h1>
 </div>
+
+{% if message %} 
+<div class="alert alert-success" role="alert">{{message}}</div> 
+{% endif %}
+
 {% endblock %}
 
 {% block body %}
 <div class="container">
-    <div class="progress">
-        <div class="progress-bar" style="width: 60%">
-            60%
-        </div>
-    </div>
+    <form method="post" action="{% url 'inference' %}">
+        <table>
+            {{ form }}
+        </table>
+        {% csrf_token %}
+        <hr>
+        <button id="inference-submit" type="submit" class="btn btn-primary">Save</button>
+    </form>
 </div>
+
+
+<!-- <div class="container">
+    <br>
+    {{results|safe}}
+</div> -->
+
 {% endblock %}

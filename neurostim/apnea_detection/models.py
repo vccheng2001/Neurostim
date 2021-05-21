@@ -39,3 +39,9 @@ class Setup(models.Model):
     def __str__(self):  
         return f"{self.excerpt} from {self.database}, apnea type: {self.apnea_type}"
 
+
+# Model hyperparameters
+class ModelParams(models.Model):  
+    batch_size = models.PositiveIntegerField(default=32)
+    epochs = models.PositiveIntegerField(default=10)
+    positive_threshold = models.FloatField(default=0.7)

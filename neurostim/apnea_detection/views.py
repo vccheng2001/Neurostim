@@ -12,7 +12,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 
 # forms 
-from apnea_detection.forms import LoginForm, RegisterForm, SetupForm
+from apnea_detection.forms import LoginForm, RegisterForm, SetupForm, ModelParamsForm
 
 # file i/o
 import pandas as pd
@@ -29,12 +29,12 @@ SAMPLING_RATE = 8 # default
 
 ''' helper function to convert csv to html '''
 def csv_to_html(file):
+    # round floats to 3 decimal places
     df = pd.read_csv(file)
-    return df.to_html()
+    return df.to_html(classes='table table-hover', header="true", float_format='%.3f')
 
 @login_required
 def home(request):
-    print(datetime.now())
     context = {}
     return render(request, "apnea_detection/home.html", context=context)
 
@@ -56,10 +56,10 @@ def setup(request):
                 # logs file
                 context['logs'] = csv_to_html(logs_file)
                 return render(request, "apnea_detection/setup.html", context=context)
-            except Exception as err:
+            except Exception as error_message:
                 # else throw error 
                 context["error_heading"] = "Error during normalization step. Please try again."
-                context["error_message"] = err
+                context["error_message"] = error_message
                 return render(request, "apnea_detection/error.html", context=context)
     # if GET request
     context = {'form': SetupForm(), 'logs': csv_to_html(logs_file)} 
@@ -77,7 +77,7 @@ def normalize(form):
     scale_factor_high   = form["scale_factor_high"]
 
     # read unnormalized file
-    unnormalized_file = f"{DATA_DIR}/{dataset}/preprocessing/excerpt{excerpt}/filtered_8hz.txt"
+    unnormalized_file = f"{DATA_DIR}/preprocessing/{dataset}/excerpt{excerpt}/filtered_8hz.txt"
     df = pd.read_csv(unnormalized_file, delimiter=',')
     
     # perform linear scaling
@@ -111,11 +111,33 @@ def normalize(form):
 @login_required
 def inference(request):
     context = {}
+    results_file = f"{INFO_DIR}/results.csv"
+    if request.method == "POST":
+        form = ModelParamsForm(request.POST)
+        if form.is_valid():
+            try:
+                # save model hyperparameters
+                form.save()
+                # display success message
+                context["message"] = f"Success. Beginning inference..."
+                # render new form 
+                context['form'] =  ModelParamsForm()
+                # results file
+                context['results'] = csv_to_html(results_file)
+                return render(request, "apnea_detection/inference.html", context=context)
+            except Exception as error_message:
+                # else throw error 
+                context["error_heading"] = "Error during inference step. Please try again."
+                context["error_message"] = error_message
+                return render(request, "apnea_detection/error.html", context=context)
+    # if GET request
+    context = {'form': ModelParamsForm(), 'results': csv_to_html(results_file)} 
     return render(request, "apnea_detection/inference.html", context=context)
 
 @login_required
 def train(request):
-    context = {}
+    context = {}    #subprocess.call(apnea.py -)
+
     # latest 
     return render(request, "apnea_detection/train.html", context=context)
 

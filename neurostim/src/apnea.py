@@ -21,16 +21,16 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 print('python version', sys.version)
 def main():
-    preprocess()
+    preprocess_and_split()
     # Train 
     model = train_model()
     # Test
     test_model(model, start_time)
 
 '''###############################################################################
-#                               PREPROCESSING 
+#                               preprocess_and_splitING 
 ################################################################################'''
-def preprocess():
+def preprocess_and_split():
     ''' Preprocesses and organizes raw data into train data, test data'''
     initialize_directories()
     for label in labels:
