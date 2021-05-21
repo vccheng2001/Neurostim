@@ -3,7 +3,7 @@
 
 {% block heading %}
 <div class="jumbotron text-center">
-    <h1 class="display-4">Make predicions</h1>
+    <h1 class="display-4">Make predictions</h1>
 </div>
 
 {% if message %} 
@@ -15,10 +15,12 @@
 
 {% block body %}
 
-<div class="progress" style="height:20px">
-    <div class="progress-bar" style="width:20%;height:100px"></div>
-</div>
 
+<div class="container">
+    <div class="progress" style="height:20px">
+        <div class="progress-bar" style="width:20%;height:100px"></div>
+    </div>
+</div>
 <div class="container">
     <h4>Select model hyperparameters</h4>
     <br>
@@ -28,12 +30,23 @@
         </table>
         {% csrf_token %}
         <hr>
-        <button id="inference-submit" type="submit" class="btn btn-primary">Save</button>
+        <button id="inference-submit" type="submit" class="btn btn-primary">Run</button>
     </form>
 </div>
 
+
+<div>
+    <ul class="list-group">
+        {% for key, value in results.items %} 
+        <li class="list-group-item list-group-item-primary">
+            {{key}}:{{value}}
+        </li>
+        {% endfor %}
+    </ul>
+  </div>
+  
 <!-- control progress bar -->
-<script>
+<!-- <script>
 var i = 0;
 function makeProgress(){
     if(i < 100){
@@ -41,10 +54,10 @@ function makeProgress(){
         $(".progress-bar").css("width", i + "%").text(i + " %");
     }
     // Wait for sometime before running this script again
-    setTimeout("makeProgress()", 100);
+    // setTimeout("makeProgress()", 100);
 }
 makeProgress();
-</script>
+</script> -->
 <!-- <div class="container">
     <br>
     {{results|safe}}

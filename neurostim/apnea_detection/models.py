@@ -20,7 +20,6 @@ NORMALIZATION_TYPES = [
 # Create your models here.
 # User profile 
 class Setup(models.Model):  
-    
     dataset = models.CharField(max_length = 20,
                                 choices = DATASETS,
                                 default = "DREAMS")
@@ -34,10 +33,6 @@ class Setup(models.Model):
     slope_threshold= models.PositiveIntegerField(default=1)
     scale_factor_low = models.PositiveIntegerField(default=1)
     scale_factor_high = models.PositiveIntegerField(default=1) 
-
-    
-    def __str__(self):  
-        return f"{self.excerpt} from {self.database}, apnea type: {self.apnea_type}"
 
 
 # Model hyperparameters

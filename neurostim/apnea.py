@@ -244,25 +244,25 @@ def summarize_results(probabilities, actual, predicted, pred_time):
     tn, fp, fn, tp = confusion_matrix(actual, predicted, labels=[0,1]).ravel()
     # append scores as row to csv log 
     with open(f"{info_path}summary_results.csv", 'a', newline='\n') as csvfile:
-        fieldnames = [  'dataset',      'apnea_type',  'excerpt', 'num_pos_train',    'num_neg_train',\
-                        'precision_1',  'precision_0',  'recall_1', 'recall_0',  'f1_1', 'f1_0',\
-                        'support_1','support_0','true_pos','true_neg','false_pos','false_neg',
-                        'num_epochs', 'batch_size']
+        fieldnames = [  'dataset',      'apnea_type',  'excerpt', 'epochs', 'batch_size', 'num_pos_train',    'num_neg_train',\
+                        'num_pos_test', 'num_neg_test', 'precision_1',  'precision_0',  'recall_1', 'recall_0',  'f1_1', 'f1_0',\
+                        'true_pos','true_neg','false_pos','false_neg' ]
+
 
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writerow({'dataset'      :dataset,
                          'apnea_type'   :apnea_type,
                          'excerpt'      :excerpt,
+                         'epochs'   :epochs,        'batch_size'   :batch_size,
                          'num_pos_train':get_num_files(train_path+'positive/'),
                          'num_neg_train':get_num_files(train_path+'negative/'),
+                         'num_pos_test' :round(s[1],3), 'num_neg_test' :round(s[0],3),
                          'precision_1'  :round(p[1],3), 'precision_0'  :round(p[0],3),
                          'recall_1'     :round(r[1],3), 'recall_0'     :round(r[0],3),
                          'f1_1'         :round(f[1],3), 'f1_0'         :round(f[0],3),
-                         'support_1'    :round(s[1],3), 'support_0'    :round(s[0],3),
                          'true_pos'     :tp,            'true_neg'     :tn,
-                         'false_pos'    :fp,            'false_neg'    :fn,
-                         'num_epochs'   :epochs,        'batch_size'   :batch_size})
-    
+                         'false_pos'    :fp,            'false_neg'    :fn})
+
     predictions_and_labels = np.hstack((probabilities, predicted, actual, pred_time))
     # save prediction to output file 
     with open(f'{pred_path}{apnea_type}_{excerpt}.csv', "w") as out:
@@ -314,7 +314,7 @@ if __name__ == "__main__":
     batch_size  = args.batch_size
     threshold   = args.threshold
     labels      = {'positive/':1, 'negative/':0}
-    train_frac  = 0.7 # default ratio for train-test-split
+    train_frac  = 0.8 # default ratio for train-test-split
 
     print(f"Processing {dataset}: {apnea_type}_{excerpt}")
 

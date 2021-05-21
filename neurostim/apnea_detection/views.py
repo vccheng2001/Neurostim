@@ -13,6 +13,7 @@ from django.contrib.auth import authenticate, login, logout
 
 # forms 
 from apnea_detection.forms import LoginForm, RegisterForm, SetupForm, ModelParamsForm
+from apnea_detection.models import Setup, ModelParams
 
 import pandas as pd
 import os
@@ -31,7 +32,9 @@ SAMPLING_RATE = 8 # default
 def csv_to_html(file):
     # round floats to 3 decimal places
     df = pd.read_csv(file)
-    return df.to_html(classes='table table-hover', header="true", float_format='%.3f')
+    html = df.to_html(classes='table table-hover', header="true", float_format='%.3f')
+    return html
+
 
 @login_required
 def home(request):
@@ -112,21 +115,30 @@ def normalize(form):
 def inference(request):
 
     context = {}
-    results_file = f"{INFO_DIR}/results.csv"
+    results_file = f"{INFO_DIR}/summary_results.csv"
+
+    # most recent setup parameters
+    setup_params = Setup.objects.last()
+
     if request.method == "POST":
         form = ModelParamsForm(request.POST)
         if form.is_valid():
             try:
-                run_inference(form.cleaned_data)
+                model_params = form.cleaned_data
+                run_inference(setup_params, model_params)
+                results = get_summary_results(results_file)
                 # save model hyperparameters
                 form.save()
                 # display success message
-                context["message"] = f"Success. Beginning inference..."
+                context["message"] = f"Success."
+                context["results"] = results
                 # render new form 
                 context['form'] =  ModelParamsForm()
                 # results file
-                context['results'] = csv_to_html(results_file)
+                context['results'] = results
                 return render(request, "apnea_detection/inference.html", context=context)
+            
+            
             except Exception as error_message:
                 # else throw error 
                 context["error_heading"] = "Error during inference step. Please try again."
@@ -136,30 +148,49 @@ def inference(request):
     context = {'form': ModelParamsForm(), 'results': csv_to_html(results_file)} 
     return render(request, "apnea_detection/inference.html", context=context)
 
+
+
+''' Retrieves results of latest run '''
+def get_summary_results(results_file):
+    result = pd.read_csv(results_file, index_col=None, squeeze=True).tail(1)
+    result_dict = result.to_dict('r')[0]
+    return result_dict
+
+
+
+
 ''' perform inference using specified model hyperparameters '''
-def run_inference(form):
+def run_inference(setup_params, model_params):
 
 
-    epochs = form["epochs"]
-    batch_size = form["batch_size"]
-    threshold = form["positive_threshold"]
- 
+    apnea_type = setup_params.apnea_type
+    dataset = setup_params.dataset
+    excerpt = setup_params.excerpt
+    epochs = model_params["epochs"]
+    batch_size = model_params["batch_size"]
+    threshold = model_params["positive_threshold"]
+    # run apnea detection script
+
     proc = Popen(["python", "apnea.py", \
-                     "-d", "dreams",
-                     "-a", "osa",
-                     "-ex", "1",
+                     "-d", dataset,
+                     "-a", apnea_type,
+                     "-ex", str(excerpt),
                      "-t", "120",
                      "-ep", str(epochs),
                      "-b", str(batch_size),
                      "-th", str(threshold)],universal_newlines=True, stdout=PIPE)
-        
-    # while True:
-    #     output = proc.stdout.readline()
-    #     if proc.poll() is not None and output == '':
-    #         break
-    #     if "Epoch" in output:
-    #         print (output.strip())
-    # retval = proc.poll()
+
+    while True:
+        output = proc.stdout.readline()
+        # if done, breakc
+        if proc.poll() is not None and output == '':
+            break
+        if output:
+            print (output.strip())
+    ret = proc.poll()
+    print('return: ', ret)
+
+
 
 @login_required
 def train(request):
@@ -171,11 +202,15 @@ def train(request):
 @login_required
 def results(request):
     context = {}
-    cols = ["data","apnea_type","num_pos_train","num_neg_train",\
-            "f1_1","f1_0","true_pos","true_neg","false_pos","false_neg"]
+    # cols = ["data","apnea_type","num_pos_train","num_neg_train",\
+    #         "f1_1","f1_0","true_pos","true_neg","false_pos","false_neg"]
+
+    fieldnames = [  'dataset',      'apnea_type',  'excerpt', 'epochs', 'batch_size', 'num_pos_train',    'num_neg_train',\
+                    'num_pos_test', 'num_neg_test', 'precision_1',  'precision_0',  'recall_1', 'recall_0',  'f1_1', 'f1_0',\
+                    'true_pos','true_neg','false_pos','false_neg' ]
 
     # render results csv as html
-    results_file = f"{INFO_DIR}/results.csv"
+    results_file = f"{INFO_DIR}/summary_results.csv"
     context["results"] = csv_to_html(results_file)
     return render(request, "apnea_detection/results.html", context=context)
 
