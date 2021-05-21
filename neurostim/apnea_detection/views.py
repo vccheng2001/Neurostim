@@ -12,10 +12,15 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 
 # forms 
-from apnea_detection.forms import LoginForm, RegisterForm, SetupForm, NormalizationForm
+from apnea_detection.forms import LoginForm, RegisterForm, SetupForm
 
 # file i/o
 import pandas as pd
+import os
+
+ROOT_DIR = os.getcwd() 
+DATA_DIR = os.path.join(ROOT_DIR, "data")
+
 
 @login_required
 def home(request):
@@ -25,27 +30,37 @@ def home(request):
 
 @login_required
 def setup(request):
+    print(os.getcwd())
     if request.method == "POST":
         form = SetupForm(request.POST)
-        form.save()
+        if form.is_valid():
+            normalize(form.cleaned_data)
+            form.save()
     form = SetupForm()
     context = {'form': form}
     return render(request, "apnea_detection/setup.html", context=context)
 
+''' Normalizes a file specified by user '''
+def normalize(form):
+    excerpt             = form["excerpt"]
+    dataset             = form["dataset"]
+    apnea_type          = form["apnea_type"]
+    norm                = form["norm"]
+    slope_threshold     = form["slope_threshold"]
+    scale_factor_low    = form["scale_factor_low"]
+    scale_factor_high   = form["scale_factor_high"]
 
-@login_required
-def normalization(request):
-    if request.method == "POST":
-        form = NormalizationForm(request.POST)
-        form.save()
-    form = NormalizationForm()
-    context = {'form': form}
-    return render(request, "apnea_detection/normalization.html", context=context)
-
+    file_in = f"{DATA_DIR}/{dataset}/preprocessing/excerpt{excerpt}/filtered_8hz.txt"
+    df = pd.read_csv(file_in, delimiter=",")
+    # perform linear scaling
+    df["Value"] = df["Value"] * scale_factor_high
+    file_out = file_in.split('.')[0] + f"_{norm}_{scale_factor_high}" + ".norm"
+    df.to_csv(file_out, index=None, float_format='%.6f')
 
 @login_required
 def prediction(request):
     context = {}
+    # latest 
     return render(request, "apnea_detection/prediction.html", context=context)
 
 

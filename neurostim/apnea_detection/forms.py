@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.core.exceptions import ValidationError
-from apnea_detection.models import Setup, Normalization
+from apnea_detection.models import Setup
 
 # max image size 
 MAX_UPLOAD_SIZE = 2500000
@@ -88,8 +88,3 @@ class SetupForm(forms.ModelForm):
         model = Setup
         exclude = []
 
-# Normalization
-class NormalizationForm(forms.ModelForm):
-    class Meta:
-        model = Normalization
-        exclude = []
