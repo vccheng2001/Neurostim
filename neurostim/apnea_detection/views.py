@@ -125,17 +125,19 @@ def inference(request):
         if form.is_valid():
             try:
                 model_params = form.cleaned_data
-                run_inference(setup_params, model_params)
+                # run_inference(setup_params, model_params)
                 results = get_summary_results(results_file)
                 # save model hyperparameters
                 form.save()
                 # display success message
-                context["message"] = f"Success."
+                context["message"] = f"Successfully performed inference."
                 context["results"] = results
+                print(type(setup_params))
+                context["setup_params"] = setup_params
+                context["model_params"] = model_params
                 # render new form 
-                context['form'] =  ModelParamsForm()
+                # context['form'] =  ModelParamsForm()
                 # results file
-                context['results'] = results
                 return render(request, "apnea_detection/inference.html", context=context)
             
             
@@ -145,16 +147,17 @@ def inference(request):
                 context["error_message"] = error_message
                 return render(request, "apnea_detection/error.html", context=context)
     # if GET request
-    context = {'form': ModelParamsForm(), 'results': csv_to_html(results_file)} 
+    context = {'form': ModelParamsForm()}
     return render(request, "apnea_detection/inference.html", context=context)
 
 
 
 ''' Retrieves results of latest run '''
 def get_summary_results(results_file):
-    result = pd.read_csv(results_file, index_col=None, squeeze=True).tail(1)
-    result_dict = result.to_dict('r')[0]
-    return result_dict
+    result = pd.read_csv(results_file, index_col=None, squeeze=True)
+    result = result.iloc[:,-8:].tail(1)
+    results_dict = result.to_dict('r')[0]
+    return results_dict
 
 
 
@@ -202,12 +205,12 @@ def train(request):
 @login_required
 def results(request):
     context = {}
-    # cols = ["data","apnea_type","num_pos_train","num_neg_train",\
-    #         "f1_1","f1_0","true_pos","true_neg","false_pos","false_neg"]
+    cols = ["dataset","apnea_type","excerpt","epochs", "batch_size","num_pos_train","num_neg_train",\
+            "f1_1","f1_0","true_pos","true_neg","false_pos","false_neg"]
 
-    fieldnames = [  'dataset',      'apnea_type',  'excerpt', 'epochs', 'batch_size', 'num_pos_train',    'num_neg_train',\
-                    'num_pos_test', 'num_neg_test', 'precision_1',  'precision_0',  'recall_1', 'recall_0',  'f1_1', 'f1_0',\
-                    'true_pos','true_neg','false_pos','false_neg' ]
+    # fieldnames = [  'dataset',      'apnea_type',  'excerpt', 'epochs', 'batch_size', 'num_pos_train',    'num_neg_train',\
+    #                 'num_pos_test', 'num_neg_test', 'precision_1',  'precision_0',  'recall_1', 'recall_0',  'f1_1', 'f1_0',\
+    #                 'true_pos','true_neg','false_pos','false_neg' ]
 
     # render results csv as html
     results_file = f"{INFO_DIR}/summary_results.csv"
