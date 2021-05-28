@@ -46,9 +46,10 @@ class ApneaDataset(Dataset):
     # get indexes for train and test rows
     def get_splits(self, test_frac=0.3):
         # determine sizes
-        test_size = round(test_frac * len(self.X))
-        train_size = len(self.X) - test_size
+        test_size = round(test_frac * len(self.data))
+        train_size = len(self.data) - test_size
         # calculate the split
+        print(f"train size: {train_size}, test_size: {test_size}")
         return random_split(self, [train_size, test_size])
 
    

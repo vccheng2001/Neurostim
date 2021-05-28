@@ -10,7 +10,7 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 import matplotlib.pyplot as plt
-
+import pickle
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 print(f"device: {device}")
@@ -20,11 +20,12 @@ timesteps = {'dreams': 120,
                 'dublin': 160}
 def main():
     # hyper-parameters
-    num_epochs = 25
+    num_epochs = 30
     batch_size = 32
     
     init_lr = 0.01
     decay_factor = 0.7
+    test_frac = 0.3
 
 
     # dataset/excerpt parameters 
@@ -32,17 +33,19 @@ def main():
     dataset = "dreams"
     apnea_type="osa"
     excerpt=1
-    train_data = ApneaDataset(root,dataset,apnea_type,excerpt)
-    train_loader = DataLoader(dataset=train_data, \
-                                 batch_size=batch_size,\
-                                 shuffle=True)
+    data = ApneaDataset(root,dataset,apnea_type,excerpt)
+    train_data, test_data = data.get_splits(test_frac)
+    # prepare data loaders
+    train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
+    
 
 
 
     num_train = len(train_data)
-    # num_test = len(test_data)
+    num_test = len(test_data)
     print('Train dataset size: ', num_train)
-    # print('Test dataset size: ', num_test)
+    print('Test dataset size: ', num_test)
 
 
 
@@ -75,17 +78,19 @@ def main():
             optim.zero_grad()
          
             seq = seq.permute(1,0,2)
+            
             pred = model(seq).unsqueeze(-1).double() # bs x 1 
             label = label.unsqueeze(-1).double()
-            # print(pred, 'pppp')
-            # print(label, 'llll')
+        
             loss = criterion(pred.double(), label.double())
 
             train_loss += loss.item()
             pred_bin = torch.where(pred > 0.5, 1, 0)
             N = len(pred)
             # print(pred_bin, label)
-            err_rate = torch.count_nonzero(pred_bin - label) / N
+
+            errs = torch.count_nonzero(pred_bin - label)
+            err_rate = errs/N
             train_errors += err_rate
 
             loss.backward()
@@ -104,6 +109,36 @@ def main():
 
     # save model
     print("Finished Training")
+
+    # begin test 
+    model.eval()
+    test_losses = []
+    test_errors = []
+    print("Testing")
+    with torch.no_grad():
+        
+        for n_batch, (seq, label, file) in enumerate(test_loader):
+            seq = seq.permute(1,0,2)
+            pred = model(seq).unsqueeze(-1).double() # bs x 1 
+            label = label.unsqueeze(-1).double()
+
+            loss = criterion(pred.double(), label.double())
+
+            test_losses += [loss.item()]
+            pred_bin = torch.where(pred > 0.5, 1, 0)
+            N = len(pred)
+            # print(pred_bin, label)
+
+            errs = torch.count_nonzero(pred_bin - label)
+            err_rate = errs/N
+            test_errors += [err_rate]
+
+            print(f"batch #{n_batch} loss: {loss.item()}, acc: {1-err_rate}")
+    
+    
+    with open("test_loss.txt", "wb") as fp_test:   #Pickling
+        pickle.dump(test_losses, fp_test)
+
     # Visualize loss history
     plt.plot(range(num_epochs), training_losses, 'r--')
     plt.plot(range(num_epochs), training_errors, 'b-')
@@ -112,7 +147,10 @@ def main():
     plt.xlabel('Epoch')
     plt.ylabel('Metric')
     plt.show()
-    torch.save(model.state_dict(), './model.ckpt')
+
+    save_model_path = './final_model.ckpt'
+    print("Saving to... ", save_model_path)
+    torch.save(model.state_dict(), save_model_path)
     
     
 
