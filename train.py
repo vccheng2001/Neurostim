@@ -12,11 +12,14 @@ from torch.utils.data import DataLoader
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 print(f"device: {device}")
 
+timesteps = {'dreams': 120,
+                'mit': 150,
+                'dublin': 160}
 
 def main():
     # hyper-parameters
     num_epochs = 10
-    batch_size = 1
+    batch_size = 128
     lr = 0.001
     # loss balancing factor 
     alpha = 0.5
@@ -29,27 +32,29 @@ def main():
     apnea_type="osa"
     excerpt=1
     train_data = ApneaDataset(root,dataset,apnea_type,excerpt)
-    train_loader = DataLoader(dataset=dataset,\
+    train_loader = DataLoader(dataset=train_data, \
                                  batch_size=batch_size,\
                                  shuffle=False)
 
 
 
     num_train = len(train_data)
-    num_test = len(test_data)
+    # num_test = len(test_data)
     print('Train dataset size: ', num_train)
-    print('Test dataset size: ', num_test)
+    # print('Test dataset size: ', num_test)
 
 
 
     # model parameters + hyperparameters 
-    n_timesteps = 128
+    
+    n_timesteps = timesteps[dataset]    
+
     n_outputs = 1
     n_layers = 3
 
     batch_size = 10
     n_hidden = 64
-    model = LSTM(1,n_hidden,n_layers,n_outputs)
+    model = LSTM(1,n_hidden,n_layers,n_timesteps,n_outputs).double()
     model.to(device)
 
     criterion = nn.CrossEntropyLoss()
@@ -58,16 +63,15 @@ def main():
 
     # begin train 
     model.train()
-    loss_epoch_avg = []
     for epoch in range(num_epochs):
         print(f"epoch #{epoch}")
         loss_epoch = []
         running_loss = 0.0
-        
-        for n_batch, (seq, label) in enumerate(train_loader):
-            
+
+        for n_batch, (seq, label, file) in enumerate(train_loader):
             optim.zero_grad()
             
+            print('seq',seq.shape)
             pred = model(seq)
             print('pred', pred)
             loss = criterion(pred, label)

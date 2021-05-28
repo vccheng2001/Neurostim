@@ -40,7 +40,6 @@ class ApneaDataset(Dataset):
 
 
     def preprocess(self, data):
-        print('data shape', data.shape)
         data = data[:self.timesteps]
         return data
 
@@ -69,14 +68,14 @@ class ApneaDataset(Dataset):
             f = os.path.join(pos_path, file)
             arr = np.loadtxt(f,delimiter="\n", dtype=np.float64)
             if arr.shape[0] >= self.timesteps:
-                data.append(arr)
+                data.append(np.expand_dims(arr,-1))
                 label.append(1)
                 files.append(file)
         for file in neg_files:
             f = os.path.join(neg_path, file)
             arr = np.loadtxt(f,delimiter="\n", dtype=np.float64)
             if arr.shape[0] >= self.timesteps:
-                data.append(arr)
+                data.append(np.expand_dims(arr,-1))
                 label.append(0)
                 files.append(file)
 
@@ -87,13 +86,13 @@ if __name__ == "__main__":
     root= "data/"
     dataset = "dreams"
     apnea_type="osa"
-    batch_size=1
+    batch_size=128
     excerpt=1
     dataset = ApneaDataset(root,dataset,apnea_type,excerpt)
     train_loader = DataLoader(dataset=dataset,\
                                  batch_size=batch_size,\
                                  shuffle=True)
     seq, label, file = iter(train_loader).next()
-    print('seq: ', seq)
+    print('seq: ', seq.shape)
     print('label: ', label)
-    print('file', file)
+    # print('file', file.shape)
