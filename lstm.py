@@ -12,21 +12,23 @@ class LSTM(nn.Module):
         self.num_layers = num_layers 
         self.output_dim = output_dim
         self.timesteps = timesteps
-        self.lstm = nn.LSTM(input_dim,hidden_dim,num_layers,batch_first=True)
-
+        self.lstm = nn.LSTM(input_dim,hidden_dim,num_layers,dropout=0.2)
+        self.fc = nn.Linear(hidden_dim,output_dim)
         # self.lstm = nn.LSTM(input_dim,output_dim,num_layers,)
         self.softmax = nn.Softmax(dim=-1)
         # hidden_dim -> output_dim
-        self.fc = nn.Linear(hidden_dim,output_dim)
         # self.bn = nn.BatchNorm1d(self.timesteps)
         
     def forward(self,inputs):
         # x = self.bn(inputs)
         output, _ = self.lstm(inputs)
         #print("Output of LSTM: ", output.shape)
-        output =self.softmax(self.fc(output))
-        #print("Output dim: ", output.shape)
-        output = output[-1]
+        output = self.fc(output)
+        # print("after fc", output.shape)
+        output = self.softmax(output)
+        # print("after sm", output)
+        output = output.permute(1,0,2) # 32, 120, 2
+        output = output[:,-1,:]        # bs x 2 
         return output
 
 # batch_size = 10

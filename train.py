@@ -18,8 +18,8 @@ timesteps = {'dreams': 120,
                 'dublin': 160}
 def main():
     # hyper-parameters
-    num_epochs = 10
-    batch_size = 32
+    num_epochs = 50
+    batch_size = 64
     lr = 0.001
 
 
@@ -70,13 +70,14 @@ def main():
             #print('seq',seq.shape)
             #ts, bs, is
             seq = seq.permute(1,0,2)
-            pred = model(seq).squeeze()
+            pred = model(seq)
             #print(pred)
             #print('pred/label', pred.shape, label.shape)
             #print(label, 'ggg')
-            # one_hot_label = torch.eye(2)[label]
-            # print(one_hot_label.shape)
-            loss = criterion(pred.squeeze(), label)
+            
+            # print(pred.shape, 'pred')
+            # print(label.shape, 'lab')
+            loss = criterion(pred, label)
             train_loss += loss.item()
 
             loss.backward()
