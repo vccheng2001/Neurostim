@@ -1,10 +1,9 @@
 .vscode/
-dreams/
-dublin/
-mit/
+data
 old/
 meta/
 end2end/
 src/end2end
-.vscode/
 info/
+predictions/
+saved_models/

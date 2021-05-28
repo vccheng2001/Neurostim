@@ -30,11 +30,9 @@ ROOT_DIR = os.getcwd()
 DATA_DIR = os.path.join(ROOT_DIR, "data")
 INFO_DIR = os.path.join(ROOT_DIR, "info")
 MODEL_DIR = os.path.join(ROOT_DIR, "saved_models")
-SAMPLING_RATE = 8 # default
 
 ''' helper function to convert csv to html '''
 def csv_to_html(file):
-    # round floats to 3 decimal places
     df = pd.read_csv(file)
     html = df.to_html(classes='table table-striped table-bordered table-responsive table-sm')
     return html
@@ -91,29 +89,23 @@ def normalize(form):
     # sample every nth row 
     # df = df.iloc[::100, :]
 
+    # calculate slope of signal
     reg = linear_model.LinearRegression()
     reg.fit(df["Time"].values.reshape(-1,1),  df["Value"].values)
     slope = reg.coef_[0]
     print("Slope:", slope)
     
-    # perform linear scaling
-    if slope > slope_threshold:
-        print('using low scale factor')
-        scale_factor = scale_factor_high
-    else:
-        print('using high scale factor')
-        scale_factor = scale_factor_low 
+    # perform linear scaling 
+    scale_factor = scale_factor_high if slope > slope_threshold else scale_factor_low
     df["Value"] *= scale_factor
 
     # write normalized output file
     normalized_file = unnormalized_file.split('.')[0] + f"_{norm}_{scale_factor}" + ".norm"
-
-    normalized_file_relpath = os.path.relpath(normalized_file, ROOT_DIR)
     df.to_csv(normalized_file, index=None, float_format='%.6f')
-    
+ 
     # write new row to log.txt 
-    
     log_file = f"{INFO_DIR}/log.csv"
+    normalized_file_relpath = os.path.relpath(normalized_file, ROOT_DIR)
     with open(log_file, 'a', newline='\n') as logs:
         fieldnames = ['time','DB','patient','samplingRate','action','status','file_folder_Name','parameters']
         writer = csv.DictWriter(logs, fieldnames=fieldnames)
@@ -139,9 +131,6 @@ def inference(request):
     # most recent setup parameters
     setup_params = Setup.objects.last()
 
-    # if request.method == "POST":
-    #     form = SetupForm(request.POST)
-    #     if form.is_valid():
 
     try:
         returncode, stdout, stderr = run(setup_params, None, test=True)
