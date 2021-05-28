@@ -7,31 +7,10 @@ from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 from torch.utils.data import random_split
 
+timesteps = {'dreams': 120,
+             'mit': 150,
+             'dublin': 160}
 
-
-#simple function which read the data from directory and return data and label
-# you can make your own reader for other dataset.
-def build_data(path):
-    pos_path = os.path.join(path, "positive")
-    neg_path = os.path.join(path, "negative")
-    data, label = [], []
-
-    pos_files = os.listdir(pos_path)
-    neg_files = os.listdir(neg_path) 
-
-    print('num pos: ',len(pos_files))
-    print('num neg: ', len(neg_files))
-
-    # load pos, neg files into data
-    for file in pos_files:
-        f = os.path.join(pos_path, file)
-        data.append(np.loadtxt(f,delimiter="\n", dtype=np.float64))
-        label.append(1)
-    for file in neg_files:
-        f = os.path.join(pos_path, file)
-        data.append(np.loadtxt(f,delimiter="\n", dtype=np.float64))
-        label.append(0)
-    return data, label
 
 # dataset definition
 class ApneaDataset(Dataset):
@@ -42,9 +21,12 @@ class ApneaDataset(Dataset):
         self.dataset = dataset
         self.apnea_type = apnea_type
         self.excerpt = excerpt
+        self.timesteps = timesteps[dataset]
+
+
         self.path = f"{root}{dataset}/{apnea_type}_{excerpt}"
         print('Extracting pos/neg sequences from: ', self.path)
-        self.data, self.label = build_data(self.path)
+        self.data, self.label, self.files = self.build_data(self.path)
 
     def __len__(self):
         return len(self.data)
@@ -53,10 +35,13 @@ class ApneaDataset(Dataset):
     def __getitem__(self, idx):
         seq = self.preprocess(self.data[idx])
         label = self.label[idx]
-        return seq, label
+        file = self.files[idx]
+        return seq, label, file
 
 
-    def preprocess(data):
+    def preprocess(self, data):
+        print('data shape', data.shape)
+        data = data[:self.timesteps]
         return data
 
     # get indexes for train and test rows
@@ -67,14 +52,48 @@ class ApneaDataset(Dataset):
         # calculate the split
         return random_split(self, [train_size, test_size])
 
+   
+    def build_data(self, path):
+        pos_path = os.path.join(path, "positive")
+        neg_path = os.path.join(path, "negative")
+        data, label, files = [], [], []
+
+        pos_files = os.listdir(pos_path)
+        neg_files = os.listdir(neg_path) 
+
+        print('num pos: ',len(pos_files))
+        print('num neg: ', len(neg_files))
+
+        # load pos, neg files into data
+        for file in pos_files:
+            f = os.path.join(pos_path, file)
+            arr = np.loadtxt(f,delimiter="\n", dtype=np.float64)
+            if arr.shape[0] >= self.timesteps:
+                data.append(arr)
+                label.append(1)
+                files.append(file)
+        for file in neg_files:
+            f = os.path.join(neg_path, file)
+            arr = np.loadtxt(f,delimiter="\n", dtype=np.float64)
+            if arr.shape[0] >= self.timesteps:
+                data.append(arr)
+                label.append(0)
+                files.append(file)
+
+        return data, label, files
+
 # prepare the data
 if __name__ == "__main__":
     root= "data/"
     dataset = "dreams"
     apnea_type="osa"
+    batch_size=1
     excerpt=1
     dataset = ApneaDataset(root,dataset,apnea_type,excerpt)
-    train_dataloader = DataLoader(dataset=dataset,\
+    train_loader = DataLoader(dataset=dataset,\
                                  batch_size=batch_size,\
                                  shuffle=True)
-    test_data = ModelNet40Dataset(root=root, augment=True, full_dataset=full_dataset,  split='test')
+    seq, label, file = iter(train_loader).next()
+    print('seq: ', seq)
+    print('label: ', label)
+    print('file', file)
