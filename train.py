@@ -8,6 +8,7 @@ import torch
 from torch import nn
 from torch.optim import Adam
 from torch.utils.data import DataLoader
+import matplotlib.pyplot as plt
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 print(f"device: {device}")
@@ -15,16 +16,12 @@ print(f"device: {device}")
 timesteps = {'dreams': 120,
                 'mit': 150,
                 'dublin': 160}
-
 def main():
     # hyper-parameters
     num_epochs = 10
-    batch_size = 128
+    batch_size = 32
     lr = 0.001
-    # loss balancing factor 
-    alpha = 0.5
 
-    print(f"Params: epochs: {num_epochs}, batch: {batch_size}, lr: {lr}, alpha: {alpha}\n")
 
     # dataset/excerpt parameters 
     root = "data/"
@@ -34,7 +31,7 @@ def main():
     train_data = ApneaDataset(root,dataset,apnea_type,excerpt)
     train_loader = DataLoader(dataset=train_data, \
                                  batch_size=batch_size,\
-                                 shuffle=False)
+                                 shuffle=True)
 
 
 
@@ -45,14 +42,12 @@ def main():
 
 
 
-    # model parameters + hyperparameters 
+    # model parameters
     
     n_timesteps = timesteps[dataset]    
 
-    n_outputs = 1
+    n_outputs = 2
     n_layers = 3
-
-    batch_size = 10
     n_hidden = 64
     model = LSTM(1,n_hidden,n_layers,n_timesteps,n_outputs).double()
     model.to(device)
@@ -63,30 +58,51 @@ def main():
 
     # begin train 
     model.train()
+    training_losses = []
     for epoch in range(num_epochs):
         print(f"epoch #{epoch}")
-        loss_epoch = []
-        running_loss = 0.0
+        train_loss = 0.0
 
         for n_batch, (seq, label, file) in enumerate(train_loader):
+
             optim.zero_grad()
             
-            print('seq',seq.shape)
-            pred = model(seq)
-            print('pred', pred)
-            loss = criterion(pred, label)
+            #print('seq',seq.shape)
+            #ts, bs, is
+            seq = seq.permute(1,0,2)
+            pred = model(seq).squeeze()
+            #print(pred)
+            #print('pred/label', pred.shape, label.shape)
+            #print(label, 'ggg')
+            # one_hot_label = torch.eye(2)[label]
+            # print(one_hot_label.shape)
+            loss = criterion(pred.squeeze(), label)
+            train_loss += loss.item()
+
             loss.backward()
             optim.step() 
             #scheduler.step()
-            
-            running_loss += loss.item()
-            print(f'batch #{n_batch}')
-            print(f'running_loss:{running_loss}')
 
-        loss_epoch += [running_loss]
+            if (n_batch + 1) % 2 == 0:
+                print("Epoch: [{}/{}], Batch: {}, Loss: {}".format(
+                    epoch, num_epochs, n_batch, loss.item()))
+            
+            # print(f'batch #{n_batch}')
+            # print(f'running_loss:{train_loss}')
+
+        # append training loss for each epoch 
+        training_losses.append(train_loss/n_batch)       
+        print(f"Loss for epoch {epoch}: {train_loss/n_batch}")
     
+
     # save model
     print("Finished Training")
+    # Visualize loss history
+    plt.plot(range(num_epochs), training_losses, 'r--')
+    plt.legend(['Training Loss'])
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.show()
     torch.save(model.state_dict(), './model.ckpt')
     
     
