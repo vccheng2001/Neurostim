@@ -27,8 +27,8 @@ class LSTM(nn.Module):
         # print("after fc", output.shape)
         output = self.softmax(output)
         # print("after sm", output)
-        output = output.permute(1,0,2) # 32, 120, 2
-        output = output[:,-1,:]        # bs x 2 
+        output = output.permute(1,0,2) # 120, 64, 1
+        output = output[:,-1,0]
         return output
 
 # batch_size = 10
