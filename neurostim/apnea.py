@@ -28,7 +28,6 @@ def main():
     if test:
         saved_model_path = f"{model_path}{apnea_type}_{excerpt}"
         model = keras.models.load_model(saved_model_path)
-        print(model.params)
         test_model(model, start_time)
 
 '''###############################################################################
@@ -252,7 +251,7 @@ def summarize_results(probabilities, actual, predicted, pred_time):
     # true positives, true negatives, false positives, false negatives 
     tn, fp, fn, tp = confusion_matrix(actual, predicted, labels=[0,1]).ravel()
     # append scores as row to csv log 
-    with open(f"{info_path}summary_results.csv", 'a', newline='\n') as csvfile:
+    with open(f"{info_path}summary_results.csv", 'a', newline='') as csvfile:
         cols = ["time", "dataset","apnea_type","excerpt","epochs", "batch_size","num_pos_train","num_neg_train",\
             "f1_1","f1_0","true_pos","true_neg","false_pos","false_neg"]
 

@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.core.exceptions import ValidationError
-from apnea_detection.models import Setup, ModelParams
+from apnea_detection.models import Setup, ModelHyperParams
 
 # max image size 
 MAX_UPLOAD_SIZE = 2500000
@@ -90,8 +90,12 @@ class SetupForm(forms.ModelForm):
 
 # ML Model
 # Normalization
-class ModelParamsForm(forms.ModelForm):
+class ModelHyperParamsForm(forms.ModelForm):
   
     class Meta:
-        model = ModelParams
+        model = ModelHyperParams
         exclude = []
+
+
+# class ModelHyperParamsForm(forms.ModelForm):
+#     class M

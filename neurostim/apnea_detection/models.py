@@ -6,8 +6,8 @@ from django.forms.fields import IntegerField
 
 DATASETS = [
         ("dreams", "DREAMS Apnea database"),
-        ("uccdb", "University College of Dublin Database"),
-        ("mit-bih", "MIT-BIH Arrhythmia Database")
+        ("dublin", "University College of Dublin Database"),
+        ("mit", "MIT-BIH Arrhythmia Database")
 ]
 APNEA_TYPES = [
     ("osa", "Obstructive sleep apnea"),
@@ -30,13 +30,15 @@ class Setup(models.Model):
     norm = models.CharField(max_length = 20,
                                 choices = NORMALIZATION_TYPES,
                                 default = "Linear") 
-    slope_threshold= models.PositiveIntegerField(default=1)
+    slope_threshold= models.FloatField(default=0.025)
     scale_factor_low = models.PositiveIntegerField(default=1)
-    scale_factor_high = models.PositiveIntegerField(default=1) 
+    scale_factor_high = models.PositiveIntegerField(default=100) 
+    sample_rate = models.PositiveIntegerField(default=8)  
 
 
 # Model hyperparameters
-class ModelParams(models.Model):  
+class ModelHyperParams(models.Model):  
     batch_size = models.PositiveIntegerField(default=32)
     epochs = models.PositiveIntegerField(default=10)
     positive_threshold = models.FloatField(default=0.7)
+

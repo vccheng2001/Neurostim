@@ -12,14 +12,15 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 
 # forms 
-from apnea_detection.forms import LoginForm, RegisterForm, SetupForm, ModelParamsForm
-from apnea_detection.models import Setup, ModelParams
+from apnea_detection.forms import LoginForm, RegisterForm, SetupForm, ModelHyperParamsForm
+from apnea_detection.models import Setup, ModelHyperParams
 
 import pandas as pd
 import os
 import csv
 from datetime import date, datetime
 from subprocess import Popen, PIPE, STDOUT
+from sklearn import linear_model 
 
 # disable debugging info
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
@@ -77,20 +78,35 @@ def normalize(form):
     excerpt             = form["excerpt"]
     dataset             = form["dataset"]
     apnea_type          = form["apnea_type"]
+    sample_rate         = form["sample_rate"]
     norm                = form["norm"]
     slope_threshold     = form["slope_threshold"]
     scale_factor_low    = form["scale_factor_low"]
     scale_factor_high   = form["scale_factor_high"]
 
     # read unnormalized file
-    unnormalized_file = f"{DATA_DIR}/{dataset}/preprocessing/excerpt{excerpt}/filtered_8hz.txt"
+    unnormalized_file = f"{DATA_DIR}/{dataset}/preprocessing/excerpt{excerpt}/filtered_{sample_rate}hz.txt"
     df = pd.read_csv(unnormalized_file, delimiter=',')
+
+    # sample every nth row 
+    # df = df.iloc[::100, :]
+
+    reg = linear_model.LinearRegression()
+    reg.fit(df["Time"].values.reshape(-1,1),  df["Value"].values)
+    slope = reg.coef_[0]
+    print("Slope:", slope)
     
     # perform linear scaling
-    df["Value"] = df["Value"] * scale_factor_high
-    
+    if slope > slope_threshold:
+        print('using low scale factor')
+        scale_factor = scale_factor_high
+    else:
+        print('using high scale factor')
+        scale_factor = scale_factor_low 
+    df["Value"] *= scale_factor
+
     # write normalized output file
-    normalized_file = unnormalized_file.split('.')[0] + f"_{norm}_{scale_factor_high}" + ".norm"
+    normalized_file = unnormalized_file.split('.')[0] + f"_{norm}_{scale_factor}" + ".norm"
 
     normalized_file_relpath = os.path.relpath(normalized_file, ROOT_DIR)
     df.to_csv(normalized_file, index=None, float_format='%.6f')
@@ -106,7 +122,7 @@ def normalize(form):
         writer.writerow({'time': datetime.now().strftime(time_format),
                         'DB': dataset,
                         'patient': excerpt,
-                        'samplingRate': SAMPLING_RATE,
+                        'samplingRate': sample_rate,
                         'action': 'DataNormalization',
                         'file_folder_Name': normalized_file_relpath,
                         'parameters': f"slope:{slope_threshold}, hFactor:{scale_factor_high}, lFactor:{scale_factor_low}"})
@@ -122,6 +138,10 @@ def inference(request):
 
     # most recent setup parameters
     setup_params = Setup.objects.last()
+
+    # if request.method == "POST":
+    #     form = SetupForm(request.POST)
+    #     if form.is_valid():
 
     try:
         returncode, stdout, stderr = run(setup_params, None, test=True)
@@ -212,7 +232,7 @@ def train(request):
     setup_params = Setup.objects.last()
 
     if request.method == "POST":
-        form = ModelParamsForm(request.POST)
+        form = ModelHyperParamsForm(request.POST)
         if form.is_valid():
             try:
                 model_params = form.cleaned_data
@@ -233,7 +253,7 @@ def train(request):
                 context["error_message"] = error_message
                 return render(request, "apnea_detection/error.html", context=context)
     # if GET request
-    context = {'form': ModelParamsForm()}
+    context = {'form': ModelHyperParamsForm()}
     return render(request, "apnea_detection/train.html", context=context)
 
 
