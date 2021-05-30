@@ -22,19 +22,20 @@ excerpt = 37
 sample_rate = 10
 FLATLINE_THRESHOLD = 0.01
 WINDOW_SIZE = 100
+
+
 def main():
-    get_flatline_value()
+    unnorm_file = f"{DATA_DIR}/{dataset}/preprocessing/excerpt{excerpt}/filtered_{sample_rate}hz.txt" 
+    # norm_file = f"{DATA_DIR}/{dataset}/preprocessing/excerpt{excerpt}/filtered_{sample_rate}hz_linear_100.norm"
+    unnorm_flatline_start_end_times, unnorm_flatline_value = get_flatline_value(unnorm_file)
+    # norm_flatline_start_end_times, norm_flatline_value = get_flatline_value(norm_file)
 
-def get_flatline_value():
-# read unnormalized file
-    file = f"{DATA_DIR}/{dataset}/preprocessing/excerpt{excerpt}/filtered_{sample_rate}hz.txt"
+def get_flatline_value(file):
+    # read file
     df = pd.read_csv(file, delimiter=',')
-    #plot
-    df = df.iloc[:10000]
-    df['Time1'] = df['Time']
-    df.plot(x ='Time1', y='Value', kind = 'line')
-    plt.show()
 
+    # comment out 
+    df = df.iloc[:10000]
 
     # difference of values 1 sec apart 
     df['Diff'] = df['Value'].diff(10)
@@ -46,8 +47,7 @@ def get_flatline_value():
 
     # only mark as flatline if continuous flatline for 10 seconds)
     flatline_start_end_times, flatline_values = [], []
-    print(len(df))
-    print(len(bin_str))
+
     for x in re.finditer(r"(0)\1{100,}", bin_str):
         # print(f'Start time: {x.start()}, end_time: {x.end()}')
         start_idx = x.start()
@@ -61,13 +61,22 @@ def get_flatline_value():
         avg_idx = int((start_idx+end_idx)/2)
         avg_value = df.iloc[avg_idx]['Value']
 
-        flatline_start_end_times.append({'start': start_time, 'end': end_time})
+        flatline_start_end_times.append([start_time,end_time])
         flatline_values.append(avg_value)
 
     # avg flatline value across entire time series 
-    avg_flatline_value = sum(flatline_values)/len(flatline_values)
-    print(f"Avg detected flatline value: {avg_flatline_value}")
-    return flatline_start_end_times, avg_flatline_value
+    flatline_value = sum(flatline_values)/len(flatline_values)
+    print(f"Avg detected flatline value: {flatline_value}")
+
+
+    # original plot
+    df.plot(x ='Time', y='Value', kind = 'line')
+
+    for l in flatline_start_end_times:
+        plt.plot(l, [flatline_value, flatline_value], 'r-')
+    plt.title(f"Avg detected flatline value: {flatline_value}")
+    plt.show()
+    return flatline_start_end_times, flatline_value
 
 if __name__ == "__main__":
     main()
