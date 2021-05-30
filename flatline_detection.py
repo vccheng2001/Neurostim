@@ -20,7 +20,6 @@ DATA_DIR = os.path.join(ROOT_DIR, "data")
 dataset = "mit"
 excerpt = 37
 sample_rate = 10
-SCALE_FACTOR = 100
 FLATLINE_THRESHOLD = 0.01
 WINDOW_SIZE = 100
 
@@ -28,13 +27,13 @@ WINDOW_SIZE = 100
 def main():
     # unnormalized file
     unnorm_file = f"{DATA_DIR}/{dataset}/preprocessing/excerpt{excerpt}/filtered_{sample_rate}hz.txt" 
-    unnorm_flatline_start_end_times, unnorm_flatline_value = get_flatline_value(unnorm_file)
+    unnorm_flatline_start_end_times, unnorm_flatline_value = get_flatline_value(unnorm_file, scale_factor=1)
     
     # normalized file
     norm_file = f"{DATA_DIR}/{dataset}/preprocessing/excerpt{excerpt}/filtered_{sample_rate}hz_linear_100.norm"
-    norm_flatline_start_end_times, norm_flatline_value = get_flatline_value(norm_file)
+    norm_flatline_start_end_times, norm_flatline_value = get_flatline_value(norm_file, scale_factor=100)
 
-def get_flatline_value(file):
+def get_flatline_value(file, scale_factor):
     # read file
     df = pd.read_csv(file, delimiter=',')
 
@@ -49,7 +48,7 @@ def get_flatline_value(file):
     # difference of values 1 sec apart 
     df['Diff'] = df['Value'].diff(10)
     # set to 0 if < THRESHOLD, else 1
-    df['Diff'] = np.where(abs(df['Diff']) >= FLATLINE_THRESHOLD * SCALE_FACTOR, 1, 0)
+    df['Diff'] = np.where(abs(df['Diff']) >= FLATLINE_THRESHOLD * scale_factor, 1, 0)
     # convert to binary string representation
     bin_list = df['Diff'].tolist()
     bin_str = ''.join(str(int(x)) for x in bin_list)
