@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import json
 import re
 import csv
+import shutil
+from datetime import datetime
 
 '''
 Program to annotate apnea events
@@ -18,6 +20,8 @@ pd.set_option("display.max_rows", 2000, "display.max_columns", 2000)
 # directories 
 ROOT_DIR = os.getcwd() 
 DATA_DIR = os.path.join(ROOT_DIR, "data")
+INFO_DIR = os.path.join(ROOT_DIR, "info")
+
 DATASET = "mit"
 EXCERPT = 37
 
@@ -25,6 +29,9 @@ SAMPLE_RATE= 10
 FLATLINE_THRESHOLD = 0.01
 WINDOW_SIZE = 100
 SCALE_FACTOR = 100
+
+SECONDS_BEFORE_APNEA = 10
+SECONDS_AFTER_APNEA = 5
 
 base_path = f"{DATA_DIR}/{DATASET}/preprocessing/excerpt{EXCERPT}/filtered_{SAMPLE_RATE}hz" 
 
@@ -36,14 +43,58 @@ norm_file = base_path + f"_linear_{SCALE_FACTOR}.norm"
 unnorm_out_file = base_path + f"_flatline_events.txt"
 norm_out_file = base_path + f"_linear_{SCALE_FACTOR}_flatline_events.norm"
 
+# pos/neg sequence files 
+sequence_dir = f"{DATA_DIR}/{DATASET}/postprocessing/excerpt{EXCERPT}/"
+
 def main():
     # detect flatline events
-    unnorm_flatline_times, _ = get_flatline_value(unnorm_file)
-    norm_flatline_times, _   = get_flatline_value(norm_file, scale_factor=100)
+    unnorm_flatline_times, unnorm_flatline_value = get_flatline_value(unnorm_file)
+    norm_flatline_times, norm_flatline_value   = get_flatline_value(norm_file, scale_factor=100, norm=True)
+
+    print(f"Detected flatline value for unnormalized file: {unnorm_flatline_value}")
+    print(f"Detected flatline value for normalized file: {norm_flatline_value}")
 
     # writes detected flatline events to output file 
     output_flatline_files(unnorm_flatline_times, unnorm_out_file)
     output_flatline_files(norm_flatline_times, norm_out_file)
+
+    # create positive, negative sequence files for training 
+    output_pos_neg_seq(sequence_dir, unnorm_file, unnorm_flatline_times)
+        
+
+'''
+Creates positive, negative sequences
+@param sequence_dir: directory to store pos/neg sequences
+       flatline_times: list of [start, end] times 
+       file: csv file containing time, signal value
+'''
+def output_pos_neg_seq(sequence_dir, file, flatline_times):
+    # initialize directories 
+    init_dir(sequence_dir)
+    pos_dir = sequence_dir + "positive/"
+    neg_dir = sequence_dir + "negative/"
+    init_dir(pos_dir)
+    init_dir(neg_dir)
+
+    # 10 sec before, 5 sec after 
+
+    df = pd.read_csv(file, delimiter=',')
+
+    for flatline_time in flatline_times:
+        start_time, end_time = flatline_time    
+
+        out_file = f'{start_time}.txt'
+        # get starting, ending indices to slice 
+        start_idx = df.index[df["Time"] == round(start_time - SAMPLE_RATE * SECONDS_BEFORE_APNEA, 3)][0]
+        end_idx =   df.index[df["Time"] == round(start_time +  SAMPLE_RATE * SECONDS_AFTER_APNEA, 3)][0]
+        print(f'Slicing from {start_idx} to {end_idx}')
+
+        # slice from <SECONDS_BEFORE_APNEA> sec before apnea to <SECONDS_AFTER_APNEA> sec after
+        # write to csv files
+        df.iloc[start_idx:end_idx,  df.columns.get_loc('Value')].to_csv(pos_dir + out_file, \
+                                                    index=False, header=False, float_format='%.3f')
+
+    
 
 
 
@@ -78,7 +129,7 @@ We mark any repeating sequences of 0s spanning more than 10 seconds to be an apn
                        file format is a csv with columns "Time", "Value"
        scale_factor:   scale factor used to normalize signal, default 1 if not specified
 '''
-def get_flatline_value(file, scale_factor=1):
+def get_flatline_value(file, scale_factor=1, norm=False):
     # read file
     df = pd.read_csv(file, delimiter=',')
 
@@ -115,7 +166,6 @@ def get_flatline_value(file, scale_factor=1):
 
     # avg flatline value across entire time series 
     flatline_value = sum(flatline_values)/len(flatline_values)
-    print(f"Avg detected flatline value: {flatline_value}")
 
 
     # original plot
@@ -123,9 +173,20 @@ def get_flatline_value(file, scale_factor=1):
 
     for l in flatline_times:
         plt.plot(l, [flatline_value, flatline_value], 'r-')
-    plt.title(f"Avg detected flatline value: {flatline_value}")
+    if norm: 
+        plt.title(f"Avg detected flatline value (NORMALIZED): {flatline_value}")
+    else:
+        plt.title(f"Avg detected flatline value (UNNORMALIZED): {flatline_value}")
+ 
     plt.show()
     return flatline_times, flatline_value
+
+''' Helper function to create directory '''
+def init_dir(path): 
+    if os.path.isdir(path): shutil.rmtree(path)
+    if not os.path.isdir(path):
+        # # print("Making directory.... " + path)
+        os.mkdir(path)
 
 if __name__ == "__main__":
     main()
