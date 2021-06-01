@@ -32,7 +32,7 @@ def main():
     root = "data/"
     dataset = "dreams"
     apnea_type="osa"
-    excerpt=1
+    excerpt=5
     data = ApneaDataset(root,dataset,apnea_type,excerpt)
     train_data, test_data = data.get_splits(test_frac)
     # prepare data loaders
@@ -81,6 +81,8 @@ def main():
             
             pred = model(seq).unsqueeze(-1).double() # bs x 1 
             label = label.unsqueeze(-1).double()
+
+            np.savetxt("sample_out.csv", np.hstack((pred.detach().numpy(), label.detach().numpy())), delimiter=",")
         
             loss = criterion(pred.double(), label.double())
 
@@ -99,7 +101,7 @@ def main():
             if (n_batch + 1) % 5 == 0:
                 print("Epoch: [{}/{}], Batch: {}, Loss: {}, Acc: {}".format(
                     epoch, num_epochs, n_batch, loss.item(), 1-err_rate))
-            
+            exit(0)
 
         # append training loss for each epoch 
         training_losses.append(train_loss/n_batch) 

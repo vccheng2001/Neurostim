@@ -24,7 +24,10 @@ class ApneaDataset(Dataset):
         self.timesteps = timesteps[dataset]
 
 
-        self.path = f"{root}{dataset}/{apnea_type}_{excerpt}"
+        # self.path = f"{root}{dataset}/{apnea_type}_{excerpt}"
+        self.path = f"{root}{dataset}/postprocessing/excerpt{excerpt}"
+
+
         print('Extracting pos/neg sequences from: ', self.path)
         self.data, self.label, self.files = self.build_data(self.path)
 
@@ -84,16 +87,18 @@ class ApneaDataset(Dataset):
 
 # prepare the data
 if __name__ == "__main__":
-    root= "data/"
-    dataset = "dreams"
-    apnea_type="osa"
-    batch_size=128
-    excerpt=1
-    dataset = ApneaDataset(root,dataset,apnea_type,excerpt)
-    train_loader = DataLoader(dataset=dataset,\
-                                 batch_size=batch_size,\
-                                 shuffle=True)
-    seq, label, file = iter(train_loader).next()
-    print('seq: ', seq.shape)
-    print('label: ', label)
+    main()
+    # root= "data/"
+    # dataset = "dreams"
+    # apnea_type="osa"
+    # batch_size=128
+    # excerpt=1
+    # dataset = ApneaDataset(root,dataset,apnea_type,excerpt)
+    # train_loader = DataLoader(dataset=dataset,\
+    #                              batch_size=batch_size,\
+    #                              shuffle=True)
+    # seq, label, file = iter(train_loader).next()
+    # print('seq: ', seq.shape)
+    # print('label: ', label)
+    
     # print('file', file.shape)

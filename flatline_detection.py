@@ -30,24 +30,23 @@ INFO_DIR = os.path.join(ROOT_DIR, "info")
 # SCALE_FACTOR = 100
 
 # preset parameters 
-FLATLINE_THRESHOLD = 0.01
-WINDOW_SIZE = 100
-SECONDS_BEFORE_APNEA = 10
+FLATLINE_THRESHOLD = 0.1
+SECONDS_BEFORE_APNEA = 8
 SECONDS_AFTER_APNEA = 5
 
 def main():
     # detect flatline events
-    unnorm_flatline_times, unnorm_nonflatline_times = annotate_signal(unnorm_file)
+    # unnorm_flatline_times, unnorm_nonflatline_times = annotate_signal(unnorm_file)
     norm_flatline_times, norm_nonflatline_times   = annotate_signal(norm_file, scale_factor=SCALE_FACTOR, norm=True)
 
     # writes detected flatline events to output file 
     # output_flatline_files(unnorm_flatline_times, unnorm_out_file)
-    # output_flatline_files(norm_flatline_times, norm_out_file)
+    output_flatline_files(norm_flatline_times, norm_out_file)
 
 
     # create positive, negative sequence files for training 
     # output_pos_neg_seq(sequence_dir, unnorm_file, unnorm_flatline_times, unnorm_nonflatline_times)
-    # output_pos_neg_seq(sequence_dir, norm_file, norm_flatline_times, norm_nonflatline_times)
+    output_pos_neg_seq(sequence_dir, norm_file, norm_flatline_times, norm_nonflatline_times)
 
 
 '''
@@ -80,11 +79,18 @@ def output_pos_neg_seq(sequence_dir, file, flatline_times, nonflatline_times):
                                              index=False, header=False, float_format='%.3f')
 
     # write negative sequences 
+
     for start_time, end_time in nonflatline_times: 
         out_file = f'{start_time}.txt' 
-        start_idx = df.index[df["Time"] == round(start_time, 3)][0]
-        end_idx = df.index[df["Time"] == round(end_time, 3)][0]
-        df.iloc[start_idx:end_idx,  df.columns.get_loc('Value')].to_csv(neg_dir + out_file,\
+
+        start_idx = df.index[df["Time"] == round(start_time, 3)]
+
+        try:
+            end_idx = df.index[df["Time"] == round(end_time, 3)]
+        except:
+            # check if out of bounds 
+            continue
+        df.iloc[start_idx[0]:end_idx[0],  df.columns.get_loc('Value')].to_csv(neg_dir + out_file,\
                                              index=False, header=False, float_format='%.3f')
         # print(f'Creating negative sequence from timestep {start_idx} to {end_idx} ')
 
@@ -139,17 +145,23 @@ def annotate_signal(file, scale_factor=1, norm=False):
     df = pd.read_csv(file, delimiter=',')
 
     # comment out 
-    df = df.iloc[-20000:]
+    # df = df.iloc[5000:15000]
 
+    
     # difference of values 1 sec apart (thus SAMPLE_RATE timesteps)
     df['Diff'] = df['Value'].diff(SAMPLE_RATE)
     # set to 0 if < THRESHOLD, else 1
-    df['Diff'] = np.where(abs(df['Diff']) >= FLATLINE_THRESHOLD * scale_factor, 1, 0)
 
-    
+
+    df['Binary_Diff'] = np.where(abs(df['Diff']) >= SCALE_FACTOR*100, 1, 0)
+
     # convert to binary string representation
-    bin_list = df['Diff'].tolist()
+    bin_list = df['Binary_Diff'].tolist()
     bin_str = ''.join(str(int(x)) for x in bin_list)
+
+    # # plot orig
+    # df.plot(x ='Time', y='Value', kind = 'line')
+    # plt.show()
 
     # only mark as flatline if continuous flatline for 10 seconds
     flatline_times, flatline_values = [], []
@@ -158,11 +170,10 @@ def annotate_signal(file, scale_factor=1, norm=False):
         # print(f'Start time: {x.start()}, end_time: {x.end()}')
         start_idx = x.start()
         end_idx   = x.end()
-
         # get flatline start, end time intervals
-        start_time = df.iloc[start_idx]['Time']         
-        end_time = df.iloc[end_idx]['Time'] 
-
+        start_time = df.iloc[start_idx-1]['Time']    
+             
+        end_time = df.iloc[end_idx-1]['Time'] 
         # get avg flatline value
         avg_idx = int((start_idx+end_idx)/2)
         avg_value = df.iloc[avg_idx]['Value']
@@ -195,7 +206,7 @@ def annotate_signal(file, scale_factor=1, norm=False):
     else:
         plt.title(f"Avg detected flatline value (UNNORMALIZED): {flatline_value}")
  
-    plt.show()
+    # plt.show()
     return flatline_times, nonflatline_times
 
 ''' Helper function to create directory '''

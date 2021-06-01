@@ -198,7 +198,7 @@ def run(setup_params, model_params, test):
     # run apnea detection script
 
     if test:
-        cmd = ["python", "apnea.py", 
+        cmd = ["python", "train.py", 
                "-d", dataset, 
                "-a", apnea_type,
                "-ex", str(excerpt),
@@ -206,7 +206,7 @@ def run(setup_params, model_params, test):
                "-th", str(0.7),
                "--test"]
     else:
-        cmd = ["python", "apnea.py", \
+        cmd = ["python", "train.py", \
                         "-d", dataset,
                         "-a", apnea_type,
                         "-ex", str(excerpt),
