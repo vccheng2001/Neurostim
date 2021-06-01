@@ -3,11 +3,12 @@ import numpy as np
 import pandas as pd
 import os
 import sys
+import random
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 from torch.utils.data import random_split
 
-timesteps = {'dreams': 120,
+timesteps = {'dreams': 104,
              'mit': 150,
              'dublin': 160}
 
@@ -64,30 +65,36 @@ class ApneaDataset(Dataset):
         pos_files = os.listdir(pos_path)
         neg_files = os.listdir(neg_path) 
 
+        map = {}
+        for file in pos_files:
+            map[file] = 1
+        for file in neg_files:
+            map[file] = 0
+
         print('num pos: ',len(pos_files))
         print('num neg: ', len(neg_files))
 
-        # load pos, neg files into data
-        for file in pos_files:
-            f = os.path.join(pos_path, file)
+        # load pos, neg files into data in random order
+
+        all_files = pos_files + neg_files
+        random.shuffle(all_files)
+        for file in all_files:
+            if map[file] == 1:
+                f = os.path.join(pos_path, file)
+            else:
+                f = os.path.join(neg_path, file)
             arr = np.loadtxt(f,delimiter="\n", dtype=np.float64)
             if arr.shape[0] >= self.timesteps:
                 data.append(np.expand_dims(arr,-1))
-                label.append(1)
+                label.append(map[file])
                 files.append(file)
-        for file in neg_files:
-            f = os.path.join(neg_path, file)
-            arr = np.loadtxt(f,delimiter="\n", dtype=np.float64)
-            if arr.shape[0] >= self.timesteps:
-                data.append(np.expand_dims(arr,-1))
-                label.append(0)
-                files.append(file)
+
 
         return data, label, files
 
 # prepare the data
 if __name__ == "__main__":
-    main()
+    pass
     # root= "data/"
     # dataset = "dreams"
     # apnea_type="osa"

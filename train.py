@@ -15,12 +15,12 @@ import pickle
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 print(f"device: {device}")
 
-timesteps = {'dreams': 120,
+timesteps = {'dreams': 104,
                 'mit': 150,
                 'dublin': 160}
 def main():
     # hyper-parameters
-    num_epochs = 30
+    num_epochs = 15
     batch_size = 32
     
     init_lr = 0.01
@@ -74,22 +74,22 @@ def main():
         train_errors = 0.0
 
         for n_batch, (seq, label, file) in enumerate(train_loader):
-
             optim.zero_grad()
          
             seq = seq.permute(1,0,2)
             
             pred = model(seq).unsqueeze(-1).double() # bs x 1 
             label = label.unsqueeze(-1).double()
-
-            np.savetxt("sample_out.csv", np.hstack((pred.detach().numpy(), label.detach().numpy())), delimiter=",")
         
             loss = criterion(pred.double(), label.double())
 
             train_loss += loss.item()
-            pred_bin = torch.where(pred > 0.5, 1, 0)
+            pred_bin = torch.where(pred > 0.7, 1, 0)
             N = len(pred)
             # print(pred_bin, label)
+
+            # check prediction output 
+            # np.savetxt("sample_out.csv", np.hstack((pred.detach().numpy(), pred_bin.detach().numpy(), label.detach().numpy())), delimiter=",")
 
             errs = torch.count_nonzero(pred_bin - label)
             err_rate = errs/N
@@ -101,7 +101,6 @@ def main():
             if (n_batch + 1) % 5 == 0:
                 print("Epoch: [{}/{}], Batch: {}, Loss: {}, Acc: {}".format(
                     epoch, num_epochs, n_batch, loss.item(), 1-err_rate))
-            exit(0)
 
         # append training loss for each epoch 
         training_losses.append(train_loss/n_batch) 
