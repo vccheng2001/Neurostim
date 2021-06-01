@@ -9,6 +9,8 @@ from torch import nn
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.utils.tensorboard import SummaryWriter
+writer = SummaryWriter()
 import matplotlib.pyplot as plt
 import pickle
 
@@ -20,11 +22,11 @@ timesteps = {'dreams': 104,
                 'dublin': 160}
 def main():
     # hyper-parameters
-    num_epochs = 20
+    num_epochs = 15
     batch_size = 32
     
     init_lr = 0.01
-    decay_factor = 0.5
+    decay_factor = 0.7
     test_frac = 0.2
     pos_pred_threshold = 0.7
 
@@ -91,6 +93,7 @@ def main():
             loss = criterion(pred.double(), label.double())
 
             train_loss += loss.item()
+            writer.add_scalar("Loss/train", train_loss, epoch)
             pred_bin = torch.where(pred > pos_pred_threshold, 1, 0)
             N = len(pred)
             # print(pred_bin, label)
@@ -102,6 +105,7 @@ def main():
             err_rate = errs/N
             train_errors += err_rate
 
+            
             loss.backward()
             optim.step() 
             scheduler.step(loss)
@@ -109,6 +113,7 @@ def main():
                 print("Epoch: [{}/{}], Batch: {}, Loss: {}, Acc: {}".format(
                     epoch, num_epochs, n_batch, loss.item(), 1-err_rate))
 
+        writer.flush()
         # append training loss for each epoch 
         training_losses.append(train_loss/n_batch) 
         training_errors.append(train_errors/n_batch)      
@@ -158,16 +163,23 @@ def main():
     plt.show()
 
 
-    # save model
-    save_model_path = f"{save_model_root}{dataset}/excerpt{excerpt}/{apnea_type}_ep_{num_epochs}_b_{batch_size}_lr_{init_lr}.ckpt"
-    if not os.path.isdir(save_model_path):
-        os.makedirs(save_model_path)
+    # save model, predictions, train loss image
+
+    save_base_path = f"{save_model_root}{dataset}/excerpt{excerpt}/{apnea_type}_ep_{num_epochs}_b_{batch_size}_lr_{init_lr}" 
+    if not os.path.isdir(save_base_path):
+        os.makedirs(save_base_path)
+    save_model_path = save_base_path + ".ckpt"
     print("Saving to... ", save_model_path)
     torch.save(model.state_dict(), save_model_path)
 
-    save_pred_file = f"{predictions_root}{dataset}/excerpt{excerpt}/{apnea_type}_ep_{num_epochs}_b_{batch_size}_lr_{init_lr}.csv" 
-    np.savetxt(save_pred_file, np.array([avg_test_error]),  delimiter=",")
 
+    save_pred_path = save_base_path + ".csv"
+    np.savetxt(save_pred_path + ".csv", np.array([avg_test_error]),  delimiter=",")
+
+    train_loss_img = save_base_path +".png"
+    plt.savefig(train_loss_img)
+
+    writer.close()
     
 
 

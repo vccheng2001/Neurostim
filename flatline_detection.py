@@ -87,11 +87,12 @@ def output_pos_neg_seq(sequence_dir, file, flatline_times, nonflatline_times):
 
         try:
             end_idx = df.index[df["Time"] == round(end_time, 3)]
+            df.iloc[start_idx[0]:end_idx[0],  df.columns.get_loc('Value')].to_csv(neg_dir + out_file,\
+                                             index=False, header=False, float_format='%.3f')
         except:
             # check if out of bounds 
             continue
-        df.iloc[start_idx[0]:end_idx[0],  df.columns.get_loc('Value')].to_csv(neg_dir + out_file,\
-                                             index=False, header=False, float_format='%.3f')
+   
         # print(f'Creating negative sequence from timestep {start_idx} to {end_idx} ')
 
 
@@ -145,7 +146,7 @@ def annotate_signal(file, scale_factor=1, norm=False):
     df = pd.read_csv(file, delimiter=',')
 
     # comment out 
-    # df = df.iloc[5000:15000]
+    df = df.iloc[5000:15000]
 
     
     # difference of values 1 sec apart (thus SAMPLE_RATE timesteps)
@@ -153,7 +154,7 @@ def annotate_signal(file, scale_factor=1, norm=False):
     # set to 0 if < THRESHOLD, else 1
 
 
-    df['Binary_Diff'] = np.where(abs(df['Diff']) >= SCALE_FACTOR*100, 1, 0)
+    df['Binary_Diff'] = np.where(abs(df['Diff']) >= FLATLINE_THRESHOLD * SCALE_FACTOR, 1, 0)
 
     # convert to binary string representation
     bin_list = df['Binary_Diff'].tolist()
@@ -206,7 +207,7 @@ def annotate_signal(file, scale_factor=1, norm=False):
     else:
         plt.title(f"Avg detected flatline value (UNNORMALIZED): {flatline_value}")
  
-    # plt.show()
+    plt.show()
     return flatline_times, nonflatline_times
 
 ''' Helper function to create directory '''
