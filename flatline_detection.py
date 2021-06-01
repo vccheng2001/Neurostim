@@ -72,7 +72,7 @@ def output_pos_neg_seq(sequence_dir, file, flatline_times, nonflatline_times):
         # get starting, ending indices to slice 
         start_idx = df.index[df["Time"] == round(start_time - SAMPLE_RATE * SECONDS_BEFORE_APNEA, 3)][0]
         end_idx =   df.index[df["Time"] == round(start_time +  SAMPLE_RATE * SECONDS_AFTER_APNEA, 3)][0]
-        print(f'Creating positive sequence from timestep {start_idx} to {end_idx} ')
+        # print(f'Creating positive sequence from timestep {start_idx} to {end_idx} ')
 
         # slice from <SECONDS_BEFORE_APNEA> sec before apnea to <SECONDS_AFTER_APNEA> sec after
         # write to csv files
@@ -86,7 +86,7 @@ def output_pos_neg_seq(sequence_dir, file, flatline_times, nonflatline_times):
         end_idx = df.index[df["Time"] == round(end_time, 3)][0]
         df.iloc[start_idx:end_idx,  df.columns.get_loc('Value')].to_csv(neg_dir + out_file,\
                                              index=False, header=False, float_format='%.3f')
-        print(f'Creating negative sequence from timestep {start_idx} to {end_idx} ')
+        # print(f'Creating negative sequence from timestep {start_idx} to {end_idx} ')
 
 
 
@@ -139,25 +139,22 @@ def annotate_signal(file, scale_factor=1, norm=False):
     df = pd.read_csv(file, delimiter=',')
 
     # comment out 
-    df = df.iloc[-5000:]
+    # df = df.iloc[:10000]
 
     # difference of values 1 sec apart (thus SAMPLE_RATE timesteps)
     df['Diff'] = df['Value'].diff(SAMPLE_RATE)
     # set to 0 if < THRESHOLD, else 1
     df['Diff'] = np.where(abs(df['Diff']) >= FLATLINE_THRESHOLD * scale_factor, 1, 0)
-    
-    #  original plot
-    df.plot(x ='Time', y='Value', kind = 'line')
-    plt.show()
+
     
     # convert to binary string representation
     bin_list = df['Diff'].tolist()
     bin_str = ''.join(str(int(x)) for x in bin_list)
 
-    print(bin_str)
     # only mark as flatline if continuous flatline for 10 seconds
     flatline_times, flatline_values = [], []
-    for x in re.finditer(r"(0)\1{" + re.escape(f"{SAMPLE_RATE * 10}") + r",}", bin_str):
+
+    for x in re.finditer(r"(0)\1{" + re.escape(f"{int(SAMPLE_RATE)* 10}") + r",}", bin_str):
         # print(f'Start time: {x.start()}, end_time: {x.end()}')
         start_idx = x.start()
         end_idx   = x.end()
@@ -219,9 +216,9 @@ if __name__ == "__main__":
     # store args 
     DATASET   = args.dataset
     APNEA_TYPE  = args.apnea_type
-    EXCERPT   = args.excerpt
-    SAMPLE_RATE = args.sample_rate
-    SCALE_FACTOR = args.scale_factor
+    EXCERPT   = int(args.excerpt)
+    SAMPLE_RATE = int(args.sample_rate)
+    SCALE_FACTOR = int(args.scale_factor)
 
     base_path = f"{DATA_DIR}/{DATASET}/preprocessing/excerpt{EXCERPT}/filtered_{SAMPLE_RATE}hz" 
 
