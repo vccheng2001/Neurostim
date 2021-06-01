@@ -7,7 +7,7 @@ import re
 import csv
 import shutil
 from datetime import datetime
-
+import argparse 
 '''
 Program to annotate apnea events
 1. Identify flatline areas and identify value for flatline
@@ -22,34 +22,23 @@ ROOT_DIR = os.getcwd()
 DATA_DIR = os.path.join(ROOT_DIR, "data")
 INFO_DIR = os.path.join(ROOT_DIR, "info")
 
-DATASET = "mit"
-EXCERPT = 37
 
-SAMPLE_RATE= 10
+# DATASET = "mit"
+# APNEA_TYPE = apnea_type
+# EXCERPT = 37
+# SAMPLE_RATE= 10
+# SCALE_FACTOR = 100
+
+# preset parameters 
 FLATLINE_THRESHOLD = 0.01
 WINDOW_SIZE = 100
-SCALE_FACTOR = 100
-
 SECONDS_BEFORE_APNEA = 10
 SECONDS_AFTER_APNEA = 5
-
-base_path = f"{DATA_DIR}/{DATASET}/preprocessing/excerpt{EXCERPT}/filtered_{SAMPLE_RATE}hz" 
-
-# path to unnormalized, normalized files 
-unnorm_file = base_path + ".txt"
-norm_file = base_path + f"_linear_{SCALE_FACTOR}.norm"
-
-# output file with extracted flatline events
-unnorm_out_file = base_path + f"_flatline_events.txt"
-norm_out_file = base_path + f"_linear_{SCALE_FACTOR}_flatline_events.norm"
-
-# pos/neg sequence files 
-sequence_dir = f"{DATA_DIR}/{DATASET}/postprocessing/excerpt{EXCERPT}/"
 
 def main():
     # detect flatline events
     unnorm_flatline_times, unnorm_nonflatline_times = annotate_signal(unnorm_file)
-    norm_flatline_times, norm_nonflatline_times   = annotate_signal(norm_file, scale_factor=100, norm=True)
+    norm_flatline_times, norm_nonflatline_times   = annotate_signal(norm_file, scale_factor=SCALE_FACTOR, norm=True)
 
     # writes detected flatline events to output file 
     output_flatline_files(unnorm_flatline_times, unnorm_out_file)
@@ -150,18 +139,22 @@ def annotate_signal(file, scale_factor=1, norm=False):
     df = pd.read_csv(file, delimiter=',')
 
     # comment out 
-    df = df.iloc[:10000]
+    df = df.iloc[-5000:]
 
     # difference of values 1 sec apart (thus SAMPLE_RATE timesteps)
     df['Diff'] = df['Value'].diff(SAMPLE_RATE)
     # set to 0 if < THRESHOLD, else 1
     df['Diff'] = np.where(abs(df['Diff']) >= FLATLINE_THRESHOLD * scale_factor, 1, 0)
     
+    #  original plot
+    df.plot(x ='Time', y='Value', kind = 'line')
+    plt.show()
     
     # convert to binary string representation
     bin_list = df['Diff'].tolist()
     bin_str = ''.join(str(int(x)) for x in bin_list)
 
+    print(bin_str)
     # only mark as flatline if continuous flatline for 10 seconds
     flatline_times, flatline_values = [], []
     for x in re.finditer(r"(0)\1{" + re.escape(f"{SAMPLE_RATE * 10}") + r",}", bin_str):
@@ -212,4 +205,35 @@ def init_dir(path):
         os.mkdir(path)
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-d", "--dataset",    default="dreams", help="dataset (dreams, dublin, or mit)")
+    parser.add_argument("-a", "--apnea_type", default="osa",    help="type of apnea (osa, osahs, or all)")
+    parser.add_argument("-ex","--excerpt",    default=1,        help="excerpt number to use")
+    parser.add_argument("-sr","--sample_rate",    default=10,        help="number of samples per second")
+    parser.add_argument("-sc","--scale_factor",    default=10,        help="scale factor for normalization")
+
+    # parse args 
+    args = parser.parse_args()
+
+    # print(args)
+    # store args 
+    DATASET   = args.dataset
+    APNEA_TYPE  = args.apnea_type
+    EXCERPT   = args.excerpt
+    SAMPLE_RATE = args.sample_rate
+    SCALE_FACTOR = args.scale_factor
+
+    base_path = f"{DATA_DIR}/{DATASET}/preprocessing/excerpt{EXCERPT}/filtered_{SAMPLE_RATE}hz" 
+
+    # path to unnormalized, normalized files 
+    unnorm_file = base_path + ".txt"
+    norm_file = base_path + f"_linear_{SCALE_FACTOR}.norm"
+
+    # output file with extracted flatline events
+    unnorm_out_file = base_path + f"_flatline_events.txt"
+    norm_out_file = base_path + f"_linear_{SCALE_FACTOR}_flatline_events.norm"
+
+    # pos/neg sequence files 
+    sequence_dir = f"{DATA_DIR}/{DATASET}/postprocessing/excerpt{EXCERPT}/"
+
     main()
