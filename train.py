@@ -20,20 +20,25 @@ timesteps = {'dreams': 104,
                 'dublin': 160}
 def main():
     # hyper-parameters
-    num_epochs = 15
-    batch_size = 32
+    num_epochs = 20
+    batch_size = 8
     
     init_lr = 0.01
-    decay_factor = 0.7
-    test_frac = 0.3
+    decay_factor = 0.9
+    test_frac = 0.25
+    pos_pred_threshold = 0.7
 
 
     # dataset/excerpt parameters 
-    root = "data/"
+
+    save_model_root = "saved_models/"
+    data_root = "data/"
     dataset = "dreams"
+
+    
     apnea_type="osa"
     excerpt=5
-    data = ApneaDataset(root,dataset,apnea_type,excerpt)
+    data = ApneaDataset(data_root,dataset,apnea_type,excerpt)
     train_data, test_data = data.get_splits(test_frac)
     # prepare data loaders
     train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
@@ -84,7 +89,7 @@ def main():
             loss = criterion(pred.double(), label.double())
 
             train_loss += loss.item()
-            pred_bin = torch.where(pred > 0.7, 1, 0)
+            pred_bin = torch.where(pred > pos_pred_threshold, 1, 0)
             N = len(pred)
             # print(pred_bin, label)
 
@@ -135,7 +140,8 @@ def main():
             test_errors += [err_rate]
 
             print(f"batch #{n_batch} loss: {loss.item()}, acc: {1-err_rate}")
-    
+        avg_test_error = sum(test_errors)/n_batch
+        print(f"Average test accuracy: {1-avg_test_error}")
     
     with open("test_loss.txt", "wb") as fp_test:   #Pickling
         pickle.dump(test_losses, fp_test)
@@ -149,10 +155,9 @@ def main():
     plt.ylabel('Metric')
     plt.show()
 
-    save_model_path = './final_model.ckpt'
+    save_model_path = f"{save_model_root}{dataset}/excerpt{excerpt}/{apnea_type}_ep_{num_epochs}_b_{batch_size}_lr_{init_lr}"
     print("Saving to... ", save_model_path)
     torch.save(model.state_dict(), save_model_path)
-    
     
 
 
