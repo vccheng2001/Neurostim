@@ -41,13 +41,13 @@ def main():
     norm_flatline_times, norm_nonflatline_times   = annotate_signal(norm_file, scale_factor=SCALE_FACTOR, norm=True)
 
     # writes detected flatline events to output file 
-    output_flatline_files(unnorm_flatline_times, unnorm_out_file)
-    output_flatline_files(norm_flatline_times, norm_out_file)
+    # output_flatline_files(unnorm_flatline_times, unnorm_out_file)
+    # output_flatline_files(norm_flatline_times, norm_out_file)
 
 
     # create positive, negative sequence files for training 
-    output_pos_neg_seq(sequence_dir, unnorm_file, unnorm_flatline_times, unnorm_nonflatline_times)
-    output_pos_neg_seq(sequence_dir, norm_file, norm_flatline_times, norm_nonflatline_times)
+    # output_pos_neg_seq(sequence_dir, unnorm_file, unnorm_flatline_times, unnorm_nonflatline_times)
+    # output_pos_neg_seq(sequence_dir, norm_file, norm_flatline_times, norm_nonflatline_times)
 
 
 '''
@@ -139,7 +139,7 @@ def annotate_signal(file, scale_factor=1, norm=False):
     df = pd.read_csv(file, delimiter=',')
 
     # comment out 
-    # df = df.iloc[:10000]
+    df = df.iloc[-20000:]
 
     # difference of values 1 sec apart (thus SAMPLE_RATE timesteps)
     df['Diff'] = df['Value'].diff(SAMPLE_RATE)
@@ -170,9 +170,13 @@ def annotate_signal(file, scale_factor=1, norm=False):
         flatline_times.append([start_time,end_time])
         flatline_values.append(avg_value)
 
-    # avg flatline value across entire time series 
-    flatline_value = sum(flatline_values)/len(flatline_values)
 
+    try:
+        # avg flatline value across entire time series 
+        flatline_value = sum(flatline_values)/len(flatline_values)
+    except ZeroDivisionError:
+        print("No flatline events found!")
+        exit(-1)
 
     # get non-flatline times 
     nonflatline_times = get_nonflatlines(flatline_times)
