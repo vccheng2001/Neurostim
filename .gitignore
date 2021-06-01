@@ -7,3 +7,5 @@ src/end2end
 info/
 predictions/
 saved_models/
+*.ckpt
+runs/
