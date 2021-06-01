@@ -21,17 +21,19 @@ timesteps = {'dreams': 104,
 def main():
     # hyper-parameters
     num_epochs = 20
-    batch_size = 8
+    batch_size = 32
     
     init_lr = 0.01
-    decay_factor = 0.9
-    test_frac = 0.25
+    decay_factor = 0.5
+    test_frac = 0.2
     pos_pred_threshold = 0.7
 
 
     # dataset/excerpt parameters 
 
     save_model_root = "saved_models/"
+    predictions_root = "predictions/"
+
     data_root = "data/"
     dataset = "dreams"
 
@@ -155,9 +157,17 @@ def main():
     plt.ylabel('Metric')
     plt.show()
 
-    save_model_path = f"{save_model_root}{dataset}/excerpt{excerpt}/{apnea_type}_ep_{num_epochs}_b_{batch_size}_lr_{init_lr}"
+
+    # save model
+    save_model_path = f"{save_model_root}{dataset}/excerpt{excerpt}/{apnea_type}_ep_{num_epochs}_b_{batch_size}_lr_{init_lr}.ckpt"
+    if not os.path.isdir(save_model_path):
+        os.makedirs(save_model_path)
     print("Saving to... ", save_model_path)
     torch.save(model.state_dict(), save_model_path)
+
+    save_pred_file = f"{predictions_root}{dataset}/excerpt{excerpt}/{apnea_type}_ep_{num_epochs}_b_{batch_size}_lr_{init_lr}.csv" 
+    np.savetxt(save_pred_file, np.array([avg_test_error]),  delimiter=",")
+
     
 
 
