@@ -27,26 +27,25 @@ class CNN(nn.Module):
 
     def forward(self, x):
         # Convolution 1
-        out = self.cnn1(x)
-        out = self.relu1(out)
+        output = self.cnn1(x)
+        output = self.relu1(out)
 
         # Max pool 1
-        out = self.maxpool1(out)
+        output = self.maxpool1(out)
 
         # Convolution 2 
-        out = self.cnn2(out)
-        out = self.relu2(out)
+        output = self.cnn2(out)
+        output = self.relu2(out)
 
         # Max pool 2 
-        out = self.maxpool2(out)
+        output = self.maxpool2(out)
 
         # Resize
         # Original size: (100, 32, 7, 7)
-        # out.size(0): 100
-        # New out size: (100, 32*7*7)
-        out = out.view(out.size(0), -1)
+        # output.size(0): 100
+        # New output size: (100, 32*7*7)
+        output = output.view(out.size(0), -1)
 
         # Linear function (readout)
-        out = self.fc1(out)
-
-        return out
+        output = self.fc1(out)
+        return output
