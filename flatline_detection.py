@@ -68,16 +68,19 @@ def output_pos_neg_seq(sequence_dir, file, flatline_times, nonflatline_times):
     for start_time, end_time  in flatline_times:
 
         out_file = f'{start_time}.txt'
-        # get starting, ending indices to slice 
-        start_idx = df.index[df["Time"] == round(start_time - SAMPLE_RATE * SECONDS_BEFORE_APNEA, 3)][0]
-        end_idx =   df.index[df["Time"] == round(start_time +  SAMPLE_RATE * SECONDS_AFTER_APNEA, 3)][0]
-        # print(f'Creating positive sequence from timestep {start_idx} to {end_idx} ')
+        try:
+            # get starting, ending indices to slice 
+            start_idx = df.index[df["Time"] == round(start_time - SAMPLE_RATE * SECONDS_BEFORE_APNEA, 3)][0]
+            end_idx =   df.index[df["Time"] == round(start_time +  SAMPLE_RATE * SECONDS_AFTER_APNEA, 3)][0]
+            # print(f'Creating positive sequence from timestep {start_idx} to {end_idx} ')
 
-        # slice from <SECONDS_BEFORE_APNEA> sec before apnea to <SECONDS_AFTER_APNEA> sec after
-        # write to csv files
-        df.iloc[start_idx:end_idx,  df.columns.get_loc('Value')].to_csv(pos_dir + out_file,\
-                                             index=False, header=False, float_format='%.3f')
+            # slice from <SECONDS_BEFORE_APNEA> sec before apnea to <SECONDS_AFTER_APNEA> sec after
+            # write to csv files
+            df.iloc[start_idx:end_idx,  df.columns.get_loc('Value')].to_csv(pos_dir + out_file,\
+                                                index=False, header=False, float_format='%.3f')
 
+        except:
+            continue
     # write negative sequences 
 
     for start_time, end_time in nonflatline_times: 
@@ -146,7 +149,7 @@ def annotate_signal(file, scale_factor=1, norm=False):
     df = pd.read_csv(file, delimiter=',')
 
     # comment out 
-    df = df.iloc[5000:15000]
+    # df = df.iloc[5000:15000]
 
     
     # difference of values 1 sec apart (thus SAMPLE_RATE timesteps)
