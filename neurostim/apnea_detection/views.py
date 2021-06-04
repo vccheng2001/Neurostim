@@ -28,6 +28,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 # directories 
 ROOT_DIR = Path(__file__).parents[2]
+print("ROOT", ROOT_DIR)
 DATA_DIR = os.path.join(ROOT_DIR, "data")
 INFO_DIR = os.path.join(ROOT_DIR, "info")
 MODEL_DIR = os.path.join(ROOT_DIR, "saved_models")
@@ -43,6 +44,15 @@ def csv_to_html(file):
 def home(request):
     context = {}
     return render(request, "apnea_detection/home.html", context=context)
+
+@login_required
+def select_model(request):
+    context = {}
+     # most recent setup parameters
+    setup_params = Setup.objects.latest('id') # all().order_by('-id')[:5]
+
+    context["model"] = setup_params
+    return render(request, "apnea_detection/select_model.html", context=context) 
 
 @login_required
 def setup(request):
@@ -197,24 +207,17 @@ def run(setup_params, model_params, test):
         threshold = model_params["positive_threshold"]
     # run apnea detection script
 
-    if test:
-        cmd = ["python", "train.py", 
-               "-d", dataset, 
-               "-a", apnea_type,
-               "-ex", str(excerpt),
-               "-t", "120",
-               "-th", str(0.7),
-               "--test"]
-    else:
-        cmd = ["python", "train.py", \
-                        "-d", dataset,
-                        "-a", apnea_type,
-                        "-ex", str(excerpt),
-                        "-t", "120",
-                        "-ep", str(epochs),
-                        "-b", str(batch_size)]
+    print("d", dataset, "a", apnea_type, "ex", str(excerpt))
 
-    proc = Popen(cmd, universal_newlines=True, 
+    print(os.getcwd())
+    cmd = ["python", "train.py", 
+            "-d", dataset, 
+            "-a", apnea_type,
+            "-ex", str(excerpt),
+            "--test"]
+  
+
+    proc = Popen(cmd, cwd="../", universal_newlines=True, 
                       stdout=PIPE, stderr=PIPE)
 
     stdout, stderr = proc.communicate()
@@ -239,6 +242,8 @@ def train(request):
                 model_params = form.cleaned_data
                 returncode, stdout, stderr = run(setup_params, model_params, False)
 
+                print("STDOUT")
+                print(stdout)
                 saved_model_path = stdout
                 # display success message
                 context["message"] = f"Successfully saved trained model to {saved_model_path}"
@@ -253,7 +258,6 @@ def train(request):
                 context["error_heading"] = "Error during training. Please try again."
                 context["error_message"] = error_message
                 return render(request, "apnea_detection/error.html", context=context)
-    # if GET request
     context = {'form': ModelHyperParamsForm()}
     return render(request, "apnea_detection/train.html", context=context)
 

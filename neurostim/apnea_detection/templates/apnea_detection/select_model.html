@@ -1,0 +1,29 @@
+{% extends "apnea_detection/base.html" %}
+
+
+{% block nav %}
+{% endblock %}
+
+
+{% block body %}
+<div class="jumbotron text-center">
+    <h1 class="display-4">Confirm Model Selection</h1>
+</div>
+
+<div class="col d-flex justify-content-center">
+    <div class="card" style="width: 20rem;">
+        <ul class="list-group list-group-flush">
+            <li class="list-group-item">Dataset: {{model.dataset}}</li>
+            <li class="list-group-item">Apnea type: {{model.apnea_type}}</li>
+            <li class="list-group-item">Excerpt: {{model.excerpt}}</li>
+        </ul>
+    </div>
+</div>
+<a class="btn btn-primary btn-lg" href="{% url 'train' %}" role="button">Begin training</a>
+<hr>
+
+
+
+
+{% endblock %}
+

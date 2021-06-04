@@ -13,14 +13,16 @@ from torch.utils.tensorboard import SummaryWriter
 writer = SummaryWriter()
 import matplotlib.pyplot as plt
 import pickle
+import argparse
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 print(f"device: {device}")
 
 timesteps = {'dreams': 104,
-                'mit': 150,
+                'mit': 120,
                 'dublin': 160}
 def main():
+    print('in train, cwd: ', os.getcwd())
     # hyper-parameters
     num_epochs = 15
     batch_size = 32
@@ -37,11 +39,7 @@ def main():
     predictions_root = "predictions/"
 
     data_root = "data/"
-    dataset = "dreams"
 
-    
-    apnea_type="osa"
-    excerpt=5
     data = ApneaDataset(data_root,dataset,apnea_type,excerpt)
     train_data, test_data = data.get_splits(test_frac)
     # prepare data loaders
@@ -109,7 +107,7 @@ def main():
             loss.backward()
             optim.step() 
             scheduler.step(loss)
-            if (n_batch + 1) % 5 == 0:
+            if (n_batch) % 5 == 0:
                 print("Epoch: [{}/{}], Batch: {}, Loss: {}, Acc: {}".format(
                     epoch, num_epochs, n_batch, loss.item(), 1-err_rate))
 
@@ -184,4 +182,26 @@ def main():
 
 
 if __name__ == "__main__":
+    ''' parses command line arguments, runs main() '''
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-d", "--dataset",    default="dreams", help="dataset (dreams, dublin, or mit)")
+    parser.add_argument("-a", "--apnea_type", default="osa",    help="type of apnea (osa, osahs, or all)")
+    parser.add_argument("-ex","--excerpt",    default=1,        help="excerpt number to use")
+    parser.add_argument("-ep","--epochs",     default=10,       help="number of epochs to train")
+    parser.add_argument("-b", "--batch_size", default=16,       help="batch size")
+    parser.add_argument('--test', action='store_true', help="only make prediction using existing model")
+
+    # parse args 
+    args = parser.parse_args()
+
+    # print(args)
+    # store args 
+    dataset   = args.dataset
+    apnea_type = args.apnea_type
+    excerpt = int(args.excerpt)
+    epochs    = args.epochs
+    batch_size  = args.batch_size
+    test        = args.test 
+    labels      = {'positive/':1, 'negative/':0}
+    test_frac =  0.3 # default ratio for train-test-split
     main()
