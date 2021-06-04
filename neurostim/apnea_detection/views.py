@@ -215,14 +215,13 @@ def run(setup_params, model_params, test):
             "-a", apnea_type,
             "-ex", str(excerpt),
             "--test"]
-  
+    os.environ["PYTHONUNBUFFERED"] = "1"
 
     proc = Popen(cmd, cwd="../", universal_newlines=True, 
-                      stdout=PIPE, stderr=PIPE)
-
+                      stdout=PIPE,  bufsize=1)
+     
     stdout, stderr = proc.communicate()
-    print('stdout of run', stdout, stderr)
-    return proc.returncode, stdout, stderr 
+
 
 
 
@@ -240,13 +239,10 @@ def train(request):
         if form.is_valid():
             try:
                 model_params = form.cleaned_data
-                returncode, stdout, stderr = run(setup_params, model_params, False)
+                run(setup_params, model_params, False)
 
-                print("STDOUT")
-                print(stdout)
-                saved_model_path = stdout
                 # display success message
-                context["message"] = f"Successfully saved trained model to {saved_model_path}"
+                context["message"] = f"Successfully saved trained model."
                 context["setup_params"] = setup_params
                 context["model_params"] = model_params
               

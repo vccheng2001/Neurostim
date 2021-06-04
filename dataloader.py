@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data import random_split
 
 timesteps = {'dreams': 104,
-             'mit': 150,
+             'mit': 120,
              'dublin': 160}
 
 

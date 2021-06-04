@@ -16,13 +16,11 @@ import pickle
 import argparse
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-print(f"device: {device}")
 
 timesteps = {'dreams': 104,
                 'mit': 120,
                 'dublin': 160}
 def main():
-    print('in train, cwd: ', os.getcwd())
     # hyper-parameters
     num_epochs = 15
     batch_size = 32
@@ -51,8 +49,8 @@ def main():
 
     num_train = len(train_data)
     num_test = len(test_data)
-    print('Train dataset size: ', num_train)
-    print('Test dataset size: ', num_test)
+    # print('Train dataset size: ', num_train)
+    # print('Test dataset size: ', num_test)
 
 
 
