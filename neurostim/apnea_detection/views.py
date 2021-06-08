@@ -21,20 +21,19 @@ import csv
 from datetime import date, datetime
 from subprocess import Popen, PIPE, STDOUT
 from sklearn import linear_model 
+from pathlib import Path
 
 # disable debugging info
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 
 # directories 
-ROOT_DIR = os.getcwd() 
+ROOT_DIR = Path(__file__).parents[2]
 DATA_DIR = os.path.join(ROOT_DIR, "data")
 INFO_DIR = os.path.join(ROOT_DIR, "info")
 MODEL_DIR = os.path.join(ROOT_DIR, "saved_models")
-SAMPLING_RATE = 8 # default
 
 ''' helper function to convert csv to html '''
 def csv_to_html(file):
-    # round floats to 3 decimal places
     df = pd.read_csv(file)
     html = df.to_html(classes='table table-striped table-bordered table-responsive table-sm')
     return html
@@ -54,7 +53,8 @@ def setup(request):
         if form.is_valid():
             try:
                 # normalize file and save form
-                normalized_file = normalize(form.cleaned_data)
+                normalized_file, flatline_detection_params = normalize(form.cleaned_data)
+                run_flatline_detection(flatline_detection_params)
                 form.save()
                 # display success message
                 context["message"] = f"Successfully saved normalized file to {normalized_file}."
@@ -91,29 +91,23 @@ def normalize(form):
     # sample every nth row 
     # df = df.iloc[::100, :]
 
+    # calculate slope of signal
     reg = linear_model.LinearRegression()
     reg.fit(df["Time"].values.reshape(-1,1),  df["Value"].values)
-    slope = reg.coef_[0]
+    slope = reg.coef_[0] * 1000  # convert unit
     print("Slope:", slope)
     
-    # perform linear scaling
-    if slope > slope_threshold:
-        print('using low scale factor')
-        scale_factor = scale_factor_high
-    else:
-        print('using high scale factor')
-        scale_factor = scale_factor_low 
+    # perform linear scaling 
+    scale_factor = scale_factor_high if slope > slope_threshold else scale_factor_low
     df["Value"] *= scale_factor
 
     # write normalized output file
     normalized_file = unnormalized_file.split('.')[0] + f"_{norm}_{scale_factor}" + ".norm"
-
-    normalized_file_relpath = os.path.relpath(normalized_file, ROOT_DIR)
     df.to_csv(normalized_file, index=None, float_format='%.6f')
-    
+ 
     # write new row to log.txt 
-    
     log_file = f"{INFO_DIR}/log.csv"
+    normalized_file_relpath = os.path.relpath(normalized_file, ROOT_DIR)
     with open(log_file, 'a', newline='\n') as logs:
         fieldnames = ['time','DB','patient','samplingRate','action','status','file_folder_Name','parameters']
         writer = csv.DictWriter(logs, fieldnames=fieldnames)
@@ -128,7 +122,27 @@ def normalize(form):
                         'parameters': f"slope:{slope_threshold}, hFactor:{scale_factor_high}, lFactor:{scale_factor_low}"})
 
 
-    return normalized_file_relpath
+    flatline_detection_params = dataset, apnea_type, excerpt, sample_rate, scale_factor 
+    return normalized_file_relpath, flatline_detection_params
+
+
+def run_flatline_detection(flatline_detection_params):
+    dataset, apnea_type, excerpt, sample_rate, scale_factor = flatline_detection_params
+   
+
+    cmd = ["python", "flatline_detection.py", 
+            "-d",  str(dataset), 
+            "-a",  str(apnea_type),
+            "-ex", str(excerpt),
+            "-sr", str(sample_rate),
+            "-sc", str(scale_factor)]
+
+
+    proc = Popen(cmd, universal_newlines=True, 
+                      stdout=PIPE, stderr=PIPE)
+
+    stdout, stderr = proc.communicate()
+    return proc.returncode, stdout, stderr
 
 @login_required
 def inference(request):
@@ -139,9 +153,6 @@ def inference(request):
     # most recent setup parameters
     setup_params = Setup.objects.last()
 
-    # if request.method == "POST":
-    #     form = SetupForm(request.POST)
-    #     if form.is_valid():
 
     try:
         returncode, stdout, stderr = run(setup_params, None, test=True)
@@ -187,7 +198,7 @@ def run(setup_params, model_params, test):
     # run apnea detection script
 
     if test:
-        cmd = ["python", "apnea.py", 
+        cmd = ["python", "train.py", 
                "-d", dataset, 
                "-a", apnea_type,
                "-ex", str(excerpt),
@@ -195,7 +206,7 @@ def run(setup_params, model_params, test):
                "-th", str(0.7),
                "--test"]
     else:
-        cmd = ["python", "apnea.py", \
+        cmd = ["python", "train.py", \
                         "-d", dataset,
                         "-a", apnea_type,
                         "-ex", str(excerpt),
@@ -209,16 +220,6 @@ def run(setup_params, model_params, test):
     stdout, stderr = proc.communicate()
     print('stdout of run', stdout, stderr)
     return proc.returncode, stdout, stderr 
-
-    # while True:
-    #     output = proc.stdout.readline()
-    #     # if done, breakc
-    #     if proc.poll() is not None and output == '':
-    #         break
-    #     if output:
-    #         print (output.strip())
-    # ret = proc.poll()
-    # print('return: ', ret)
 
 
 
