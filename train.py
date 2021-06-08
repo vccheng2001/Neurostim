@@ -43,16 +43,11 @@ def main():
     # prepare data loaders
     train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
-    
-
-
 
     num_train = len(train_data)
     num_test = len(test_data)
     # print('Train dataset size: ', num_train)
     # print('Test dataset size: ', num_test)
-
-
 
     # model parameters
     

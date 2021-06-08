@@ -61,12 +61,11 @@ def main():
     n_outputs = 2
     n_layers = 3
     n_hidden = 64
-    #model = LSTM(1,n_hidden,n_layers,n_timesteps,n_outputs).double()
     
-    model = CNN()
+    model = CNN(input_size=1, output_size=1).double()
     model.to(device)
 
-    criterion = nn.BCELoss()
+    criterion = nn.BCEWithLogitsLoss()
     # Define the optimizer
     optim = Adam(model.parameters(), lr=init_lr)
     scheduler = ReduceLROnPlateau(optim, 'min',  factor=decay_factor, patience=2)
@@ -85,16 +84,15 @@ def main():
          
             seq = seq.permute(1,0,2)
             
-            pred = model(seq).unsqueeze(-1).double() # bs x 1 
-            label = label.unsqueeze(-1).double()
-        
+            pred = model(seq)
+            label = label.unsqueeze(-1)
+
             loss = criterion(pred.double(), label.double())
 
             train_loss += loss.item()
             writer.add_scalar("Loss/train", train_loss, epoch)
             pred_bin = torch.where(pred > pos_pred_threshold, 1, 0)
             N = len(pred)
-            # print(pred_bin, label)
 
             # check prediction output 
             # np.savetxt("sample_out.csv", np.hstack((pred.detach().numpy(), pred_bin.detach().numpy(), label.detach().numpy())), delimiter=",")
@@ -129,15 +127,15 @@ def main():
         
         for n_batch, (seq, label, file) in enumerate(test_loader):
             seq = seq.permute(1,0,2)
-            pred = model(seq).unsqueeze(-1).double() # bs x 1 
-            label = label.unsqueeze(-1).double()
+            pred = model(seq)
+            label = label.unsqueeze(-1)
+
 
             loss = criterion(pred.double(), label.double())
 
             test_losses += [loss.item()]
             pred_bin = torch.where(pred > 0.5, 1, 0)
             N = len(pred)
-            # print(pred_bin, label)
 
             errs = torch.count_nonzero(pred_bin - label)
             err_rate = errs/N
