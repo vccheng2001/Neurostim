@@ -16,6 +16,8 @@ Program to annotate apnea events
 '''
 
 pd.set_option("display.max_rows", 2000, "display.max_columns", 2000)
+plt.rcParams["figure.figsize"] = [20, 6]  # width, height
+samplingFrequency   = 400
 
 # directories 
 ROOT_DIR = os.getcwd() 
@@ -209,6 +211,11 @@ def annotate_signal(file, scale_factor=1, norm=False):
         plt.title(f"Avg detected flatline value (NORMALIZED): {flatline_value}")
     else:
         plt.title(f"Avg detected flatline value (UNNORMALIZED): {flatline_value}")
+
+    plt.subplot(212)
+    powerSpectrum, freqenciesFound, time, imageAxis = plt.specgram(ft, Fs=samplingFrequency)
+    plt.xlabel('Time')
+    plt.ylabel('Frequency')
  
     plt.show()
     return flatline_times, nonflatline_times
