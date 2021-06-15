@@ -17,7 +17,7 @@ Program to annotate apnea events
 
 pd.set_option("display.max_rows", 2000, "display.max_columns", 2000)
 plt.rcParams["figure.figsize"] = [20, 6]  # width, height
-samplingFrequency   = 400
+#samplingFrequency   = 400
 
 # directories 
 ROOT_DIR = os.getcwd() 
@@ -134,6 +134,27 @@ def get_nonflatlines(flatline_times):
             nonflatline_times.append([end_time, end_time + TOTAL_SEC])
     return nonflatline_times
 
+def get_xn(Xs,n):
+    '''
+    calculate the Fourier coefficient X_n of 
+    Discrete Fourier Transform (DFT)
+    '''
+    L  = len(Xs)
+    ks = np.arange(0,L,1)
+    xn = np.sum(Xs*np.exp((1j*2*np.pi*ks*n)/L))/L
+    return(xn)
+
+def get_xns(ts):
+    '''
+    Compute Fourier coefficients only up to the Nyquest Limit Xn, n=1,...,L/2
+    and multiply the absolute value of the Fourier coefficients by 2, 
+    to account for the symetry of the Fourier coefficients above the Nyquest Limit. 
+    '''
+    mag = []
+    L = len(ts)
+    for n in range(int(L/2)): # Nyquest Limit
+        mag.append(np.abs(get_xn(ts,n))*2)
+    return(mag)
 
 '''
 Detects flatline events by retrieving difference between signal values at adjacent
@@ -166,8 +187,8 @@ def annotate_signal(file, scale_factor=1, norm=False):
     bin_str = ''.join(str(int(x)) for x in bin_list)
 
     # # plot orig
-    # df.plot(x ='Time', y='Value', kind = 'line')
-    # plt.show()
+    #df.plot(x ='Time', y='Value', kind = 'line')
+    #plt.show()
 
     # only mark as flatline if continuous flatline for 10 seconds
     flatline_times, flatline_values = [], []
@@ -212,10 +233,12 @@ def annotate_signal(file, scale_factor=1, norm=False):
     else:
         plt.title(f"Avg detected flatline value (UNNORMALIZED): {flatline_value}")
 
+    '''
     plt.subplot(212)
     powerSpectrum, freqenciesFound, time, imageAxis = plt.specgram(ft, Fs=samplingFrequency)
     plt.xlabel('Time')
     plt.ylabel('Frequency')
+    '''
  
     plt.show()
     return flatline_times, nonflatline_times
