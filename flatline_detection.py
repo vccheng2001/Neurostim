@@ -134,27 +134,10 @@ def get_nonflatlines(flatline_times):
             nonflatline_times.append([end_time, end_time + TOTAL_SEC])
     return nonflatline_times
 
-def get_xn(Xs,n):
-    '''
-    calculate the Fourier coefficient X_n of 
-    Discrete Fourier Transform (DFT)
-    '''
-    L  = len(Xs)
-    ks = np.arange(0,L,1)
-    xn = np.sum(Xs*np.exp((1j*2*np.pi*ks*n)/L))/L
-    return(xn)
-
-def get_xns(ts):
-    '''
-    Compute Fourier coefficients only up to the Nyquest Limit Xn, n=1,...,L/2
-    and multiply the absolute value of the Fourier coefficients by 2, 
-    to account for the symetry of the Fourier coefficients above the Nyquest Limit. 
-    '''
-    mag = []
-    L = len(ts)
-    for n in range(int(L/2)): # Nyquest Limit
-        mag.append(np.abs(get_xn(ts,n))*2)
-    return(mag)
+def get_Hz_scale_vec(ks,sample_rate,Npoints):
+    freq_Hz = ks*sample_rate/Npoints
+    freq_Hz  = [int(i) for i in freq_Hz ] 
+    return(freq_Hz )
 
 '''
 Detects flatline events by retrieving difference between signal values at adjacent
@@ -225,8 +208,10 @@ def annotate_signal(file, scale_factor=1, norm=False):
 
     for ft in flatline_times:
         plt.plot(ft, [flatline_value, flatline_value], 'r-')
+        plt.specgram(df.Value, Fs=6, cmap="rainbow")
     for nft in nonflatline_times:
         plt.plot(nft, [flatline_value, flatline_value], 'y-')
+        plt.specgram(df.Value, Fs=6, cmap="rainbow")
 
     if norm: 
         plt.title(f"Avg detected flatline value (NORMALIZED): {flatline_value}")
