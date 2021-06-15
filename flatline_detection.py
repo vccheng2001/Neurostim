@@ -204,26 +204,21 @@ def annotate_signal(file, scale_factor=1, norm=False):
  
 
     # original plot
-    df.plot(x ='Time', y='Value', kind = 'line')
+    #df.plot(x ='Time', y='Value', kind = 'line')
 
+    fig, (ax1, ax2) = plt.subplots(2)
+    ax1.plot('Time', 'Value', data = df)
     for ft in flatline_times:
-        plt.plot(ft, [flatline_value, flatline_value], 'r-')
-        plt.specgram(df.Value, Fs=6, cmap="rainbow")
+        ax1.plot(ft, [flatline_value, flatline_value], 'r-')
+        ax2.specgram(df.Value, Fs=6, cmap="rainbow")
     for nft in nonflatline_times:
-        plt.plot(nft, [flatline_value, flatline_value], 'y-')
-        plt.specgram(df.Value, Fs=6, cmap="rainbow")
+        ax1.plot(nft, [flatline_value, flatline_value], 'y-')
+        ax2.specgram(df.Value, Fs=6, cmap="rainbow")
 
     if norm: 
-        plt.title(f"Avg detected flatline value (NORMALIZED): {flatline_value}")
+        fig.suptitle(f"Avg detected flatline value (NORMALIZED): {flatline_value}")
     else:
-        plt.title(f"Avg detected flatline value (UNNORMALIZED): {flatline_value}")
-
-    '''
-    plt.subplot(212)
-    powerSpectrum, freqenciesFound, time, imageAxis = plt.specgram(ft, Fs=samplingFrequency)
-    plt.xlabel('Time')
-    plt.ylabel('Frequency')
-    '''
+        fig.suptitle(f"Avg detected flatline value (UNNORMALIZED): {flatline_value}")
  
     plt.show()
     return flatline_times, nonflatline_times
