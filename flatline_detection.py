@@ -17,7 +17,7 @@ Program to annotate apnea events
 
 pd.set_option("display.max_rows", 2000, "display.max_columns", 2000)
 plt.rcParams["figure.figsize"] = [20, 6]  # width, height
-samplingFrequency   = 400
+#samplingFrequency   = 400
 
 # directories 
 ROOT_DIR = os.getcwd() 
@@ -134,6 +134,10 @@ def get_nonflatlines(flatline_times):
             nonflatline_times.append([end_time, end_time + TOTAL_SEC])
     return nonflatline_times
 
+def get_Hz_scale_vec(ks,sample_rate,Npoints):
+    freq_Hz = ks*sample_rate/Npoints
+    freq_Hz  = [int(i) for i in freq_Hz ] 
+    return(freq_Hz )
 
 '''
 Detects flatline events by retrieving difference between signal values at adjacent
@@ -166,8 +170,8 @@ def annotate_signal(file, scale_factor=1, norm=False):
     bin_str = ''.join(str(int(x)) for x in bin_list)
 
     # # plot orig
-    # df.plot(x ='Time', y='Value', kind = 'line')
-    # plt.show()
+    #df.plot(x ='Time', y='Value', kind = 'line')
+    #plt.show()
 
     # only mark as flatline if continuous flatline for 10 seconds
     flatline_times, flatline_values = [], []
@@ -200,22 +204,21 @@ def annotate_signal(file, scale_factor=1, norm=False):
  
 
     # original plot
-    df.plot(x ='Time', y='Value', kind = 'line')
+    #df.plot(x ='Time', y='Value', kind = 'line')
 
+    fig, (ax1, ax2) = plt.subplots(2)
+    ax1.plot('Time', 'Value', data = df)
     for ft in flatline_times:
-        plt.plot(ft, [flatline_value, flatline_value], 'r-')
+        ax1.plot(ft, [flatline_value, flatline_value], 'r-')
+        ax2.specgram(df.Value, Fs=6, cmap="rainbow")
     for nft in nonflatline_times:
-        plt.plot(nft, [flatline_value, flatline_value], 'y-')
+        ax1.plot(nft, [flatline_value, flatline_value], 'y-')
+        ax2.specgram(df.Value, Fs=6, cmap="rainbow")
 
     if norm: 
-        plt.title(f"Avg detected flatline value (NORMALIZED): {flatline_value}")
+        fig.suptitle(f"Avg detected flatline value (NORMALIZED): {flatline_value}")
     else:
-        plt.title(f"Avg detected flatline value (UNNORMALIZED): {flatline_value}")
-
-    plt.subplot(212)
-    powerSpectrum, freqenciesFound, time, imageAxis = plt.specgram(ft, Fs=samplingFrequency)
-    plt.xlabel('Time')
-    plt.ylabel('Frequency')
+        fig.suptitle(f"Avg detected flatline value (UNNORMALIZED): {flatline_value}")
  
     plt.show()
     return flatline_times, nonflatline_times
