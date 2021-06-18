@@ -7,7 +7,7 @@ import re
 import csv
 import shutil
 from datetime import datetime
-from scipy import signal as sgn
+from scipy import signal
 import argparse 
 '''
 Program to annotate apnea events
@@ -211,9 +211,17 @@ def annotate_signal(file, scale_factor=1, norm=False):
     for ft in flatline_times:
         ax1.plot(ft, [flatline_value, flatline_value], 'r-')
         ax2.specgram(df.Value, Fs=10, cmap="rainbow")
+
+        #Scipy
+        #f, t, Sxx = signal.spectrogram(df.Value, fs=10e3)
+        #ax2.pcolormesh(t, f, Sxx, shading='gouraud')
     for nft in nonflatline_times:
         ax1.plot(nft, [flatline_value, flatline_value], 'y-')
         ax2.specgram(df.Value, Fs=10, cmap="rainbow")
+
+        #Scipy
+        #f, t, Sxx = signal.spectrogram(df.Value, fs=10e3)
+        #ax2.pcolormesh(t, f, Sxx, shading='gouraud')
 
     if norm: 
         fig.suptitle(f"Avg detected flatline value (NORMALIZED): {flatline_value}")
