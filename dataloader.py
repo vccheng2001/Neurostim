@@ -8,10 +8,10 @@ from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 from torch.utils.data import random_split
 
-timesteps = {'dreams': 104,
-             'mit': 120,
-             'dublin': 160}
-
+timesteps = {'dreams': 120,
+                'mit': 120,
+                'dublin': 160,
+                'patch':224}
 
 # dataset definition
 class ApneaDataset(Dataset):
@@ -74,6 +74,7 @@ class ApneaDataset(Dataset):
         print('num pos: ',len(pos_files))
         print('num neg: ', len(neg_files))
 
+
         # load pos, neg files into data in random order
 
         all_files = pos_files + neg_files
@@ -84,10 +85,10 @@ class ApneaDataset(Dataset):
             else:
                 f = os.path.join(neg_path, file)
             arr = np.loadtxt(f,delimiter="\n", dtype=np.float64)
-            if arr.shape[0] >= self.timesteps:
-                data.append(np.expand_dims(arr,-1))
-                label.append(map[file])
-                files.append(file)
+            # if arr.shape[0] >= self.timesteps:
+            data.append(np.expand_dims(arr,-1))
+            label.append(map[file])
+            files.append(file)
 
 
         return data, label, files

@@ -2,9 +2,11 @@
 
 
 {% block heading %}
+{% if test_acc %} 
 <div class="jumbotron text-center">
-    <h1 class="display-4">Make predictions</h1>
+  <h1 class="display-4"> Average test accuracy: {{test_acc}}</h1>
 </div>
+{% endif %}
 
 {% if message %} 
 <div class="alert alert-success" role="alert">{{message}}</div> 
@@ -12,70 +14,11 @@
 
 {% endblock %}
 
-
 {% block body %}
-
-<!-- 
-<div class="container">
-    <div class="progress" style="height:20px">
-        <div class="progress-bar" style="width:20%;height:100px"></div>
-    </div>
-</div> -->
-<br>
-
-
-{% if results %}
-<div class="card" style="padding: 15px width: 100rem;">
-    <div class="card-body">
-      <h3 class="font-weight-bold mb-3">Results</h3>
-      <ul>
-        <li>Dataset: {{setup_params.dataset}}</li>
-        <li>Apnea type: {{setup_params.apnea_type}}</li>
-        <li>Excerpt: {{setup_params.excerpt}}</li>
-        <li>Epochs: {{model_params.epochs}}</li>
-        <li> Batch size: {{model_params.batch_size}}</li>
-      </ul>
-        
-      <p class="mb-0">
-          The model was trained on {{results.num_pos_train}} positive training 
-          sequences and {{results.num_neg_train}} negative training sequences.
-          The confusion matrix consists of the true positives (TP), 
-          true negatives (TN), false positives (FP), and false negatives (FN).
-          The F1 score, which is a weighted harmonic mean of precision and recall,
-          measures the model's overall performance.
-
-      </p>
-    </div>
-    <ul class="list-group list-group-flush">
-      {% for key, value in results.items %} 
-            <li class="list-group-item">{{key}}: {{value}}</li>
-      {% endfor %}
-    </ul>
-    <div class="card-body">
-      <a href="{% url 'results' %}" class="card-link">View results of all runs</a>
-      <a href="{% url 'inference' %}" class="card-link">Make a new prediction</a>
-    </div>
-  </div>
 <div>
-{% endif %}
-
-  
-<!-- control progress bar -->
-<!-- <script>
-var i = 0;
-function makeProgress(){
-    if(i < 100){
-        i = i + 1;
-        $(".progress-bar").css("width", i + "%").text(i + " %");
-    }
-    // Wait for sometime before running this script again
-    // setTimeout("makeProgress()", 100);
-}
-makeProgress();
-</script> -->
-<!-- <div class="container">
-    <br>
-    {{results|safe}}
-</div> -->
-
+  Preprocessing params:
+  Dataset: {{params.dataset}}
+  Apnea type:{{params.apnea_type}}
+  Excerpt: {{params.excerpt}}
+</div>
 {% endblock %}

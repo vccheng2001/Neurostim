@@ -7,7 +7,8 @@ from django.forms.fields import IntegerField
 DATASETS = [
         ("dreams", "DREAMS Apnea database"),
         ("dublin", "University College of Dublin Database"),
-        ("mit", "MIT-BIH Arrhythmia Database")
+        ("mit", "MIT-BIH Arrhythmia Database"),
+        ("patch", "Neurostim Patch data")
 ]
 APNEA_TYPES = [
     ("osa", "Obstructive sleep apnea"),
@@ -19,7 +20,7 @@ NORMALIZATION_TYPES = [
 ]
 # Create your models here.
 # User profile 
-class Setup(models.Model):  
+class Preprocessing(models.Model):  
     dataset = models.CharField(max_length = 20,
                                 choices = DATASETS,
                                 default = "DREAMS")

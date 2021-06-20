@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.core.exceptions import ValidationError
-from apnea_detection.models import Setup, ModelHyperParams
+from apnea_detection.models import Preprocessing, ModelHyperParams
 
 # max image size 
 MAX_UPLOAD_SIZE = 2500000
@@ -81,11 +81,11 @@ class RegisterForm(forms.Form):
         return username
 
 
-# Normalization
-class SetupForm(forms.ModelForm):
+# Normalization + Flatline Detection
+class PreprocessingForm(forms.ModelForm):
   
     class Meta:
-        model = Setup
+        model = Preprocessing
         exclude = []
 
 # ML Model

@@ -12,14 +12,14 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 
 # forms 
-from apnea_detection.forms import LoginForm, RegisterForm, SetupForm, ModelHyperParamsForm
-from apnea_detection.models import Setup, ModelHyperParams
+from apnea_detection.forms import LoginForm, RegisterForm, PreprocessingForm, ModelHyperParamsForm
+from apnea_detection.models import Preprocessing, ModelHyperParams
 
 import pandas as pd
 import os
 import csv
 from datetime import date, datetime
-from subprocess import Popen, PIPE, STDOUT
+from subprocess import Popen, PIPE, STDOUT, CalledProcessError
 from sklearn import linear_model 
 from pathlib import Path
 
@@ -35,7 +35,7 @@ MODEL_DIR = os.path.join(ROOT_DIR, "saved_models")
 
 ''' helper function to convert csv to html '''
 def csv_to_html(file):
-    df = pd.read_csv(file)
+    df = pd.read_csv(file, header=None)
     html = df.to_html(classes='table table-striped table-bordered table-responsive table-sm')
     return html
 
@@ -48,39 +48,39 @@ def home(request):
 @login_required
 def select_model(request):
     context = {}
-     # most recent setup parameters
-    setup_params = Setup.objects.latest('id') # all().order_by('-id')[:5]
+     # most recent preprocessing parameters
+    preprocessing_params = Preprocessing.objects.latest('id') # all().order_by('-id')[:5]
 
-    context["model"] = setup_params
+    context["model"] = preprocessing_params
     return render(request, "apnea_detection/select_model.html", context=context) 
 
 @login_required
-def setup(request):
+def preprocessing(request):
     context = {}
     logs_file = f"{INFO_DIR}/log.csv"
     if request.method == "POST":
-        form = SetupForm(request.POST)
+        form = PreprocessingForm(request.POST)
         if form.is_valid():
             try:
                 # normalize file and save form
                 normalized_file, flatline_detection_params = normalize(form.cleaned_data)
                 run_flatline_detection(flatline_detection_params)
                 form.save()
-                # display success message
+
+                # success
                 context["message"] = f"Successfully saved normalized file to {normalized_file}."
-                # return new form 
-                context['form'] =  SetupForm()
-                # logs file
+                context['form'] =  PreprocessingForm()
                 context['logs'] = csv_to_html(logs_file)
-                return render(request, "apnea_detection/setup.html", context=context)
+                return render(request, "apnea_detection/preprocessing.html", context=context)
+
             except Exception as error_message:
                 # else throw error 
                 context["error_heading"] = "Error during normalization step. Please try again."
                 context["error_message"] = error_message
                 return render(request, "apnea_detection/error.html", context=context)
     # if GET request
-    context = {'form': SetupForm(), 'logs': csv_to_html(logs_file)} 
-    return render(request, "apnea_detection/setup.html", context=context)
+    context = {'form': PreprocessingForm(), 'logs': csv_to_html(logs_file)} 
+    return render(request, "apnea_detection/preprocessing.html", context=context)
 
 ''' Normalizes a file specified by user '''
 def normalize(form):
@@ -119,7 +119,7 @@ def normalize(form):
     log_file = f"{INFO_DIR}/log.csv"
     normalized_file_relpath = os.path.relpath(normalized_file, ROOT_DIR)
     with open(log_file, 'a', newline='\n') as logs:
-        fieldnames = ['time','DB','patient','samplingRate','action','status','file_folder_Name','parameters']
+        fieldnames = ['time','DB','patient','samplingRate','action','file_folder_Name','parameters']
         writer = csv.DictWriter(logs, fieldnames=fieldnames)
         print('Writing row....\n')
         time_format = '%m/%d/%Y %H:%M %p'
@@ -160,18 +160,20 @@ def inference(request):
     context = {}
     results_file = f"{INFO_DIR}/summary_results.csv"
 
-    # most recent setup parameters
-    setup_params = Setup.objects.last()
+    # most recent preprocessing parameters
+    preprocessing_params = Preprocessing.objects.last()
+    print('preparams', preprocessing_params)
 
 
     try:
-        returncode, stdout, stderr = run(setup_params, None, test=True)
-        results = get_summary_results(results_file)
-        # save model hyperparameters
-        # display success message
+        test_acc = run_inference(preprocessing_params, test=True)
+        print('test acc', test_acc)
+        # results = get_summary_results(results_file)
+        # save model hyperparameters, display success message
         context["message"] = f"Successfully performed inference."
         context["results"] = results
-        context["setup_params"] = setup_params
+        context["preprocessing_params"] = preprocessing_params
+        context["test_acc"] = test_acc
         return render(request, "apnea_detection/inference.html", context=context)
             
             
@@ -193,72 +195,39 @@ def get_summary_results(results_file):
 
 
 
+''' make prediction using specified model hyperparameters '''
+def run_inference(preprocessing_params, test):
+    apnea_type = preprocessing_params.apnea_type
+    dataset = preprocessing_params.dataset
+    excerpt = preprocessing_params.excerpt
 
-''' train/testmodel using specified model hyperparameters '''
-def run(setup_params, model_params, test):
-
-
-    apnea_type = setup_params.apnea_type
-    dataset = setup_params.dataset
-    excerpt = setup_params.excerpt
-    if model_params:
-        epochs = model_params["epochs"]
-        batch_size = model_params["batch_size"]
-        threshold = model_params["positive_threshold"]
     # run apnea detection script
 
-    print("d", dataset, "a", apnea_type, "ex", str(excerpt))
+    print("dataset: ", dataset, "apnea_type: ", apnea_type, "excerpt: ", str(excerpt))
 
     print(os.getcwd())
-    cmd = ["python", "train.py", 
+    cmd = ["python3", "train.py", 
             "-d", dataset, 
             "-a", apnea_type,
             "-ex", str(excerpt),
             "--test"]
-    os.environ["PYTHONUNBUFFERED"] = "1"
 
-    proc = Popen(cmd, cwd="../", universal_newlines=True, 
-                      stdout=PIPE,  bufsize=1)
+    # os.environ["PYTHONUNBUFFERED"] = "1"
+
+    # proc = Popen(cmd, cwd="../", universal_newlines=True, 
+    #                   stdout=PIPE,  bufsize=1)
      
-    stdout, stderr = proc.communicate()
+    # stdout, stderr = proc.communicate()
+    test_acc = ""
+    with Popen(cmd, cwd="../", stdout=PIPE, bufsize=1, universal_newlines=True) as p:
+        for line in p.stdout:
+            print(line, end='') # process line here
+            if "Average test accuracy" in line:
+                test_acc = line.split(":")[1]
 
-
-
-
-@login_required
-def train(request):
-    context = {}
-    results_file = f"{INFO_DIR}/summary_results.csv"
-
-    # most recent setup parameters
-    # choose from setup params 
-    setup_params = Setup.objects.last()
-
-    if request.method == "POST":
-        form = ModelHyperParamsForm(request.POST)
-        if form.is_valid():
-            try:
-                model_params = form.cleaned_data
-                run(setup_params, model_params, False)
-
-                # display success message
-                context["message"] = f"Successfully saved trained model."
-                context["setup_params"] = setup_params
-                context["model_params"] = model_params
-              
-                return render(request, "apnea_detection/inference.html", context=context)
-            
-            
-            except Exception as error_message:
-                # else throw error 
-                context["error_heading"] = "Error during training. Please try again."
-                context["error_message"] = error_message
-                return render(request, "apnea_detection/error.html", context=context)
-    context = {'form': ModelHyperParamsForm()}
-    return render(request, "apnea_detection/train.html", context=context)
-
-
-
+    if p.returncode != 0:
+        raise CalledProcessError(p.returncode, p.args)
+    return test_acc
 
 @login_required
 def results(request):
@@ -273,6 +242,7 @@ def results(request):
     # render results csv as html
     results_file = f"{INFO_DIR}/summary_results.csv"
     context["results"] = csv_to_html(results_file)
+    context["preds"] = csv_to_html(os.path.join(ROOT_DIR, "sample_out.csv"))
     return render(request, "apnea_detection/results.html", context=context)
 
 #####################################################################

@@ -30,7 +30,7 @@ INFO_DIR = os.path.join(ROOT_DIR, "info")
 # SCALE_FACTOR = 100
 
 # preset parameters 
-FLATLINE_THRESHOLD = 40
+FLATLINE_THRESHOLD = 0.1
 SECONDS_BEFORE_APNEA = 10
 SECONDS_AFTER_APNEA = 5
 
@@ -65,6 +65,7 @@ def output_pos_neg_seq(sequence_dir, file, flatline_times, nonflatline_times):
 
     # write positive sequences, one file for each flatline apnea event
     df = pd.read_csv(file, delimiter=',')
+    
     for start_time, end_time  in flatline_times:
 
         out_file = f'{start_time}.txt'
@@ -149,43 +150,53 @@ def annotate_signal(file, scale_factor=1, norm=False):
     df = pd.read_csv(file, delimiter=',')
 
     # comment out 
-    # df = df.iloc[5000:15000]
+    # df = df.iloc[
+
+
+    # original plot
+    df.plot(x ='Time', y='Value', kind = 'line')
+    plt.show()
 
     
     # difference of values 1 sec apart (thus SAMPLE_RATE timesteps)
     df['Diff'] = df['Value'].diff(SAMPLE_RATE)
     # set to 0 if < THRESHOLD, else 1
-
+    # print(df["Diff"])
 
     df['Binary_Diff'] = np.where(abs(df['Diff']) >= FLATLINE_THRESHOLD * SCALE_FACTOR, 1, 0)
 
+    # only mark as flatline if continuous flatline for 10 seconds
+    nonflatline_times, flatline_times, flatline_values = [], [], []
     # convert to binary string representation
     bin_list = df['Binary_Diff'].tolist()
-    bin_str = ''.join(str(int(x)) for x in bin_list)
+    n = len(bin_list)
+    # print(bin_list)
+    print('sample rate', SAMPLE_RATE)
+    k = int(SAMPLE_RATE) * 15
+    print('window size', k)
+    flatline_thresh = int(k * 0.1)
+    nonflatline_thresh = int(k * 0.5)
+    # print('thresh',thresh)
+    max_flatline_end = 0
+    max_nonflatline_end = 0
+    i = 0
+    while i + k < n: 
+        window_sum = sum(bin_list[i:i+k])
 
-    # # plot orig
-    # df.plot(x ='Time', y='Value', kind = 'line')
-    # plt.show()
+        if window_sum < flatline_thresh:
+            start_idx = i
+            end_idx = i+k
+            # get flatline start, end time intervals
+            start_time = df.iloc[start_idx-1]['Time']        
+            end_time = df.iloc[end_idx-1]['Time'] 
+            # get avg flatline value
+            avg_idx = int((start_idx+end_idx)/2)
+            avg_value = df.iloc[avg_idx]['Value']
 
-    # only mark as flatline if continuous flatline for 10 seconds
-    flatline_times, flatline_values = [], []
-
-    for x in re.finditer(r"(0)\1{" + re.escape(f"{int(SAMPLE_RATE)* 10}") + r",}", bin_str):
-        # print(f'Start time: {x.start()}, end_time: {x.end()}')
-        start_idx = x.start()
-        end_idx   = x.end()
-        # get flatline start, end time intervals
-        start_time = df.iloc[start_idx-1]['Time']    
-             
-        end_time = df.iloc[end_idx-1]['Time'] 
-        # get avg flatline value
-        avg_idx = int((start_idx+end_idx)/2)
-        avg_value = df.iloc[avg_idx]['Value']
-
-        flatline_times.append([start_time,end_time])
-        flatline_values.append(avg_value)
-
-
+            flatline_times.append([start_time,end_time])
+            flatline_values.append(avg_value)
+            i += k
+        else: i += 1
     try:
         # avg flatline value across entire time series 
         flatline_value = sum(flatline_values)/len(flatline_values)
@@ -193,17 +204,26 @@ def annotate_signal(file, scale_factor=1, norm=False):
         print("No flatline events found!")
         exit(-1)
 
-    # get non-flatline times 
-    nonflatline_times = get_nonflatlines(flatline_times)
- 
+
+
+    i = 0
+    while i + k < n:
+        window_sum = sum(bin_list[i:i+k])
+        if window_sum > nonflatline_thresh:
+            start_idx = i
+            end_idx = i+k 
+            # get flatline start, end time intervals
+            start_time = df.iloc[start_idx-1]['Time']        
+            end_time = df.iloc[end_idx-1]['Time']  
+            nonflatline_times.append([start_time,end_time])
+            i += k
+        else: i += 1
 
     # original plot
     df.plot(x ='Time', y='Value', kind = 'line')
 
     for ft in flatline_times:
         plt.plot(ft, [flatline_value, flatline_value], 'r-')
-    for nft in nonflatline_times:
-        plt.plot(nft, [flatline_value, flatline_value], 'y-')
 
     if norm: 
         plt.title(f"Avg detected flatline value (NORMALIZED): {flatline_value}")
@@ -211,6 +231,15 @@ def annotate_signal(file, scale_factor=1, norm=False):
         plt.title(f"Avg detected flatline value (UNNORMALIZED): {flatline_value}")
  
     plt.show()
+    df.plot(x ='Time', y='Value', kind = 'line')
+
+    for nft in nonflatline_times:
+        plt.plot(nft, [flatline_value, flatline_value], 'y-')
+    plt.show()
+
+    print('num flatline events',len(flatline_times))
+    print('num nonflatline events',len(nonflatline_times))
+
     return flatline_times, nonflatline_times
 
 ''' Helper function to create directory '''
