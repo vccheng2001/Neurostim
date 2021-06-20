@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
 
-device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
+'''LSTM model to classify time series signals as apnea/non-apnea events'''
 
 class LSTM(nn.Module):
     
@@ -14,7 +15,6 @@ class LSTM(nn.Module):
         self.timesteps = timesteps
         self.lstm = nn.LSTM(input_dim,hidden_dim,num_layers,dropout=0.2)
         self.fc = nn.Linear(hidden_dim,output_dim)
-        # self.lstm = nn.LSTM(input_dim,output_dim,num_layers,)
         self.softmax = nn.Softmax(dim=-1)
         # hidden_dim -> output_dim
         # self.bn = nn.BatchNorm1d(self.timesteps)

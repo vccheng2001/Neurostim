@@ -1,45 +1,38 @@
-import time
-import math
-from lstm import LSTM
-from dataloader import ApneaDataset
+
 import os
 import numpy as np
+
+from lstm import LSTM
+from dataloader import ApneaDataset
+
 import torch
 from torch import nn
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torch.utils.tensorboard import SummaryWriter
-writer = SummaryWriter()
+
 import matplotlib.pyplot as plt
-import pickle
 import argparse
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
-timesteps = {'dreams': 104,
-                'mit': 120,
-                'dublin': 160,
-                'patch':224}
 def main():
     # hyper-parameters
-    # num_epochs = 15
-    # batch_size = 32
-    
     init_lr = 0.01
     decay_factor = 0.7
-    test_frac = 0.2
+    test_frac = 0.3
     pos_pred_threshold = 0.7
 
 
     # dataset/excerpt parameters 
-
     save_model_root = "saved_models/"
     predictions_root = "predictions/"
     data_root = "data/"
 
+    # dataset 
     data = ApneaDataset(data_root,dataset,apnea_type,excerpt)
     train_data, test_data = data.get_splits(test_frac)
+    
     # prepare data loaders
     train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
@@ -47,22 +40,22 @@ def main():
 
     num_train = len(train_data)
     num_test = len(test_data)
-    # print('Train dataset size: ', num_train)
-    # print('Test dataset size: ', num_test)
+    print('Train dataset size: ', num_train)
+    print('Test dataset size: ', num_test)
 
-    # model parameters
-    
-    n_timesteps = timesteps[dataset]    
-
+    # Model 
+    n_timesteps = data.timesteps 
     n_outputs = 2
     n_layers = 3
     n_hidden = 64
     model = LSTM(1,n_hidden,n_layers,n_timesteps,n_outputs).double()
     model.to(device)
 
+    # Loss 
     criterion = nn.BCELoss()
-    # Define the optimizer
+    # Optimizer
     optim = Adam(model.parameters(), lr=init_lr)
+    # LR scheduler 
     scheduler = ReduceLROnPlateau(optim, 'min',  factor=decay_factor, patience=2)
     
     save_base_path = f"{save_model_root}{dataset}/excerpt{excerpt}/{apnea_type}_ep_{epochs}_b_{batch_size}_lr_{init_lr}" 
@@ -71,8 +64,7 @@ def main():
         os.makedirs(save_base_path)
     save_model_path = save_base_path + ".ckpt"
 
-    # begin train 
-
+    # Train
     if not test:
         model.train()
         training_losses = []
@@ -93,14 +85,9 @@ def main():
                 loss = criterion(pred.double(), label.double())
 
                 train_loss += loss.item()
-                writer.add_scalar("Loss/train", train_loss, epoch)
+                # writer.add_scalar("Loss/train", train_loss, epoch)
                 pred_bin = torch.where(pred > pos_pred_threshold, 1, 0)
                 N = len(pred)
-
-                # check prediction output 
-                # if n_batch % 10 == 0:
-                    # np.savetxt(f"strain_batch{n_batch}.csv", np.hstack((pred.detach().numpy(), pred_bin.detach().numpy(), label.detach().numpy())), delimiter=",")
-
                 errs = torch.count_nonzero(pred_bin - label)
                 err_rate = errs/N
                 train_errors += err_rate
@@ -113,7 +100,7 @@ def main():
                     print("Epoch: [{}/{}], Batch: {}, Loss: {}, Acc: {}".format(
                         epoch, epochs, n_batch, loss.item(), 1-err_rate))
 
-            writer.flush()
+            # writer.flush()
             # append training loss for each epoch 
             training_losses.append(train_loss/n_batch) 
             training_errors.append(train_errors/n_batch)      
@@ -159,7 +146,6 @@ def main():
                 test_losses += [loss.item()]
                 pred_bin = torch.where(pred > 0.5, 1, 0)
                 N = len(pred)
-                print('TEST PRED', pred_bin, label)
 
                 errs = torch.count_nonzero(pred_bin - label)
                 err_rate = errs/N
@@ -170,8 +156,8 @@ def main():
                 print(f"batch #{n_batch} loss: {loss.item()}, acc: {1-err_rate}")
             avg_test_error = sum(test_errors)/n_batch
             print(f"Average test accuracy: {1-avg_test_error}")
-        
-        np.savetxt(save_base_path + "out.csv", np.array([avg_test_error]),  delimiter=",")
+        # Save test errors 
+        np.savetxt(save_base_path + "test_errors.csv", np.array([avg_test_error]),  delimiter=",")
 
        
 
@@ -190,8 +176,6 @@ if __name__ == "__main__":
 
     # parse args 
     args = parser.parse_args()
-
-    # print(args)
     # store args 
     dataset   = args.dataset
     apnea_type = args.apnea_type
@@ -200,5 +184,4 @@ if __name__ == "__main__":
     batch_size  = int(args.batch_size)
     test        = args.test 
     labels      = {'positive/':1, 'negative/':0}
-    test_frac =  0.3 # default ratio for train-test-split
     main()

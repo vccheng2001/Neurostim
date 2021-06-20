@@ -4,16 +4,12 @@ import pandas as pd
 import os
 import sys
 import random
+import torch 
 from torch.utils.data import Dataset
-from torch.utils.data import DataLoader
 from torch.utils.data import random_split
 
-timesteps = {'dreams': 120,
-                'mit': 120,
-                'dublin': 160,
-                'patch':224}
+'''Split dataset into train/test in preparation for apnea detection model'''
 
-# dataset definition
 class ApneaDataset(Dataset):
     # load the dataset
     def __init__(self, root, dataset, apnea_type, excerpt):
@@ -22,32 +18,26 @@ class ApneaDataset(Dataset):
         self.dataset = dataset
         self.apnea_type = apnea_type
         self.excerpt = excerpt
-        self.timesteps = timesteps[dataset]
-
-
-        # self.path = f"{root}{dataset}/{apnea_type}_{excerpt}"
+        self.timesteps = None
         self.path = f"{root}{dataset}/postprocessing/excerpt{excerpt}"
-
-
-        print('Extracting pos/neg sequences from: ', self.path)
         self.data, self.label, self.files = self.build_data(self.path)
 
     def __len__(self):
         return len(self.data)
 
-    # get a row at an index
+    ''' retrieve one sample '''
     def __getitem__(self, idx):
         seq = self.preprocess(self.data[idx])
         label = self.label[idx]
         file = self.files[idx]
         return seq, label, file
 
-
+    ''' make sure data is the correct number of timesteps '''
     def preprocess(self, data):
         data = data[:self.timesteps]
         return data
 
-    # get indexes for train and test rows
+    ''' split data into train, test'''
     def get_splits(self, test_frac=0.3):
         # determine sizes
         test_size = round(test_frac * len(self.data))
@@ -57,7 +47,10 @@ class ApneaDataset(Dataset):
         return random_split(self, [train_size, test_size])
 
    
+    ''' build pos, neg files '''
     def build_data(self, path):
+        print(f'Extracting pos/neg sequences from: {self.path}')
+
         pos_path = os.path.join(path, "positive")
         neg_path = os.path.join(path, "negative")
         data, label, files = [], [], []
@@ -65,27 +58,31 @@ class ApneaDataset(Dataset):
         pos_files = os.listdir(pos_path)
         neg_files = os.listdir(neg_path) 
 
+        # check timesteps
+        self.timesteps = len(pos_files[0])
+
+        # store file labels 
         map = {}
         for file in pos_files:
             map[file] = 1
         for file in neg_files:
             map[file] = 0
 
-        print('num pos: ',len(pos_files))
-        print('num neg: ', len(neg_files))
+        print(f'Number of positive files: {len(pos_files)}')
+        print(f'Number of negative files: {len(neg_files)}')
 
 
-        # load pos, neg files into data in random order
-
+        # Randomly shuffle files 
         all_files = pos_files + neg_files
         random.shuffle(all_files)
+
+        # Separate into positive, negative datasets
         for file in all_files:
             if map[file] == 1:
                 f = os.path.join(pos_path, file)
             else:
                 f = os.path.join(neg_path, file)
             arr = np.loadtxt(f,delimiter="\n", dtype=np.float64)
-            # if arr.shape[0] >= self.timesteps:
             data.append(np.expand_dims(arr,-1))
             label.append(map[file])
             files.append(file)

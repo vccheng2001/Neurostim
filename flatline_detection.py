@@ -2,8 +2,7 @@ import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import json
-import re
+
 import csv
 import shutil
 from datetime import datetime
@@ -12,7 +11,7 @@ import argparse
 Program to annotate apnea events
 1. Identify flatline areas and identify value for flatline
 2. Annotate flatline apnea events 
-3. Output to positive, negative sequences 
+3. Generate positive, negative sequences for ML model 
 '''
 
 pd.set_option("display.max_rows", 2000, "display.max_columns", 2000)
@@ -22,31 +21,19 @@ ROOT_DIR = os.getcwd()
 DATA_DIR = os.path.join(ROOT_DIR, "data")
 INFO_DIR = os.path.join(ROOT_DIR, "info")
 
-
-# DATASET = "mit"
-# APNEA_TYPE = apnea_type
-# EXCERPT = 37
-# SAMPLE_RATE= 10
-# SCALE_FACTOR = 100
-
 # preset parameters 
 FLATLINE_THRESHOLD = 0.1
 SECONDS_BEFORE_APNEA = 10
 SECONDS_AFTER_APNEA = 5
+WINDOW_SIZE_SECONDS = 10
 
 def main():
     # detect flatline events
-    # unnorm_flatline_times, unnorm_nonflatline_times = annotate_signal(unnorm_file)
-    norm_flatline_times, norm_nonflatline_times   = annotate_signal(norm_file, scale_factor=SCALE_FACTOR, norm=True)
-
+    flatline_times, nonflatline_times  = detect_apnea(file, scale_factor=SCALE_FACTOR, norm=True)
     # writes detected flatline events to output file 
-    # output_flatline_files(unnorm_flatline_times, unnorm_out_file)
-    output_flatline_files(norm_flatline_times, norm_out_file)
-
-
-    # create positive, negative sequence files for training 
-    # output_pos_neg_seq(sequence_dir, unnorm_file, unnorm_flatline_times, unnorm_nonflatline_times)
-    output_pos_neg_seq(sequence_dir, norm_file, norm_flatline_times, norm_nonflatline_times)
+    output_apnea_files(flatline_times, out_file)
+    # create positive, negative sequence files for training/testing
+    generate_pos_neg_seq(sequence_dir, file, flatline_times, nonflatline_times)
 
 
 '''
@@ -55,7 +42,7 @@ Creates positive, negative sequences
        flatline_times: list of [start, end] times 
        file: csv file containing time, signal value
 '''
-def output_pos_neg_seq(sequence_dir, file, flatline_times, nonflatline_times): 
+def generate_pos_neg_seq(sequence_dir, file, flatline_times, nonflatline_times): 
     # initialize directories 
     init_dir(sequence_dir)
     pos_dir = sequence_dir + "positive/"
@@ -66,40 +53,36 @@ def output_pos_neg_seq(sequence_dir, file, flatline_times, nonflatline_times):
     # write positive sequences, one file for each flatline apnea event
     df = pd.read_csv(file, delimiter=',')
     
+    # apnea start time
     for start_time, end_time  in flatline_times:
 
         out_file = f'{start_time}.txt'
         try:
-            # get starting, ending indices to slice 
-            start_idx = df.index[df["Time"] == round(start_time - SAMPLE_RATE * SECONDS_BEFORE_APNEA, 3)][0]
-            end_idx =   df.index[df["Time"] == round(start_time +  SAMPLE_RATE * SECONDS_AFTER_APNEA, 3)][0]
-            # print(f'Creating positive sequence from timestep {start_idx} to {end_idx} ')
-
             # slice from <SECONDS_BEFORE_APNEA> sec before apnea to <SECONDS_AFTER_APNEA> sec after
-            # write to csv files
+ 
+            start_idx = df.index[df["Time"] == round(start_time -  SECONDS_BEFORE_APNEA, 3)][0]
+            end_idx =   df.index[df["Time"] == round(start_time +  SECONDS_AFTER_APNEA, 3)][0]
+
             df.iloc[start_idx:end_idx,  df.columns.get_loc('Value')].to_csv(pos_dir + out_file,\
                                                 index=False, header=False, float_format='%.3f')
 
         except:
             continue
+    
     # write negative sequences 
-
     for start_time, end_time in nonflatline_times: 
         out_file = f'{start_time}.txt' 
 
-        start_idx = df.index[df["Time"] == round(start_time, 3)]
-
         try:
-            end_idx = df.index[df["Time"] == round(end_time, 3)]
-            df.iloc[start_idx[0]:end_idx[0],  df.columns.get_loc('Value')].to_csv(neg_dir + out_file,\
+            # slice for <SECONDS_BEFORE_APNEA + SECONDS_AFTER_APNEA> seconds 
+            start_idx = df.index[df["Time"] == round(start_time, 3)][0]
+            end_idx = df.index[df["Time"] == round(start_time + (SECONDS_BEFORE_APNEA + SECONDS_AFTER_APNEA), 3)][0]
+
+            df.iloc[start_idx:end_idx,  df.columns.get_loc('Value')].to_csv(neg_dir + out_file,\
                                              index=False, header=False, float_format='%.3f')
         except:
             # check if out of bounds 
             continue
-   
-        # print(f'Creating negative sequence from timestep {start_idx} to {end_idx} ')
-
-
 
 
 
@@ -108,8 +91,7 @@ Writes detected flatline events to output file
 @param flatline_times: list of [start, end] times
        out_file: file to write to 
 '''
-def output_flatline_files(flatline_times, out_file):
-    print('out file', out_file)
+def output_apnea_files(flatline_times, out_file):
     with open(out_file, 'w', newline='\n') as out:
         fieldnames = ["OnSet", "Duration", "Notation"]
         writer = csv.DictWriter(out, fieldnames=fieldnames)
@@ -121,17 +103,6 @@ def output_flatline_files(flatline_times, out_file):
                             'Duration': '%.3f' % (end_time - start_time),
                             'Notation': 'FlatLine'})
 
-'''
-Gets non-flatline regions in signal. Used to make negative sequences
-@param flatline_times: file with signal values sampled at <sample_rate> hz
-'''
-def get_nonflatlines(flatline_times):
-    nonflatline_times = []
-    TOTAL_SEC = SECONDS_BEFORE_APNEA + SECONDS_AFTER_APNEA
-    for start_time, end_time in flatline_times:
-        if end_time - start_time >= TOTAL_SEC:
-            nonflatline_times.append([end_time, end_time + TOTAL_SEC])
-    return nonflatline_times
 
 
 '''
@@ -145,15 +116,14 @@ We mark any repeating sequences of 0s spanning more than 10 seconds to be an apn
        scale_factor:   scale factor used to normalize signal, default 1 if not specified
        norm: indicates whether using unnormalized or normalized file
 '''
-def annotate_signal(file, scale_factor=1, norm=False):
+def detect_apnea(file, scale_factor=1, norm=False):
     # read file
     df = pd.read_csv(file, delimiter=',')
 
-    # comment out 
-    # df = df.iloc[
+    # uncomment if using subset of signal 
+    # df = df.iloc[:10000]
 
-
-    # original plot
+    # plot original time series 
     df.plot(x ='Time', y='Value', kind = 'line')
     plt.show()
 
@@ -161,42 +131,45 @@ def annotate_signal(file, scale_factor=1, norm=False):
     # difference of values 1 sec apart (thus SAMPLE_RATE timesteps)
     df['Diff'] = df['Value'].diff(SAMPLE_RATE)
     # set to 0 if < THRESHOLD, else 1
-    # print(df["Diff"])
-
     df['Binary_Diff'] = np.where(abs(df['Diff']) >= FLATLINE_THRESHOLD * SCALE_FACTOR, 1, 0)
-
-    # only mark as flatline if continuous flatline for 10 seconds
-    nonflatline_times, flatline_times, flatline_values = [], [], []
-    # convert to binary string representation
+    # convert to binary list 
     bin_list = df['Binary_Diff'].tolist()
-    n = len(bin_list)
-    # print(bin_list)
-    print('sample rate', SAMPLE_RATE)
-    k = int(SAMPLE_RATE) * 15
-    print('window size', k)
-    flatline_thresh = int(k * 0.1)
-    nonflatline_thresh = int(k * 0.5)
-    # print('thresh',thresh)
-    max_flatline_end = 0
-    max_nonflatline_end = 0
+
+    
+
+    n = len(bin_list)                               # length of time series 
+    k = int(SAMPLE_RATE) * WINDOW_SIZE_SECONDS      # window size (number of timesteps)
+    nonflatline_times, flatline_times, flatline_values = [], [], []     
+    flatline_thresh = int(k * 0.1)                  # max % of 0s in window to count as flatline
+    nonflatline_thresh = int(k * 0.5)               # min % of 0s in window to count as nonflatline 
+
+
+    '''----------------Extracting nonflatline events----------------------'''
+
+    # sliding window over time series 
     i = 0
-    while i + k < n: 
+    while (i + k) < n: 
         window_sum = sum(bin_list[i:i+k])
 
+        # if detect flatline 
         if window_sum < flatline_thresh:
             start_idx = i
             end_idx = i+k
             # get flatline start, end time intervals
-            start_time = df.iloc[start_idx-1]['Time']        
-            end_time = df.iloc[end_idx-1]['Time'] 
-            # get avg flatline value
+            start_time = df.iloc[start_idx]['Time']        
+            end_time = df.iloc[end_idx]['Time'] 
+
+            # get average flatline value from ceneter of flatline event 
             avg_idx = int((start_idx+end_idx)/2)
             avg_value = df.iloc[avg_idx]['Value']
 
+            # append as flatline event 
             flatline_times.append([start_time,end_time])
             flatline_values.append(avg_value)
             i += k
+        # if no flatline, advance to next timestep 
         else: i += 1
+
     try:
         # avg flatline value across entire time series 
         flatline_value = sum(flatline_values)/len(flatline_values)
@@ -205,9 +178,9 @@ def annotate_signal(file, scale_factor=1, norm=False):
         exit(-1)
 
 
-
+    '''----------------Extracting nonflatline events----------------------'''
     i = 0
-    while i + k < n:
+    while (i + k) < n:
         window_sum = sum(bin_list[i:i+k])
         if window_sum > nonflatline_thresh:
             start_idx = i
@@ -219,12 +192,14 @@ def annotate_signal(file, scale_factor=1, norm=False):
             i += k
         else: i += 1
 
+
+    ''''--------------------Plot detected flatline vents----------------------'''
+
+
     # original plot
     df.plot(x ='Time', y='Value', kind = 'line')
-
     for ft in flatline_times:
         plt.plot(ft, [flatline_value, flatline_value], 'r-')
-
     if norm: 
         plt.title(f"Avg detected flatline value (NORMALIZED): {flatline_value}")
     else:
@@ -233,20 +208,22 @@ def annotate_signal(file, scale_factor=1, norm=False):
     plt.show()
     df.plot(x ='Time', y='Value', kind = 'line')
 
+    ''''--------------------Plot detected nonflatline vents----------------------'''
     for nft in nonflatline_times:
         plt.plot(nft, [flatline_value, flatline_value], 'y-')
     plt.show()
 
-    print('num flatline events',len(flatline_times))
-    print('num nonflatline events',len(nonflatline_times))
+
+    print(f"Extracted {len(flatline_times)} flatline events")
+    print(f"Extracted {len(nonflatline_times)} flatline events")
 
     return flatline_times, nonflatline_times
+
 
 ''' Helper function to create directory '''
 def init_dir(path): 
     if os.path.isdir(path): shutil.rmtree(path)
     if not os.path.isdir(path):
-        # # print("Making directory.... " + path)
         os.mkdir(path)
 
 if __name__ == "__main__":
@@ -260,7 +237,6 @@ if __name__ == "__main__":
     # parse args 
     args = parser.parse_args()
 
-    # print(args)
     # store args 
     DATASET   = args.dataset
     APNEA_TYPE  = args.apnea_type
@@ -271,12 +247,10 @@ if __name__ == "__main__":
     base_path = f"{DATA_DIR}/{DATASET}/preprocessing/excerpt{EXCERPT}/filtered_{SAMPLE_RATE}hz" 
 
     # path to unnormalized, normalized files 
-    unnorm_file = base_path + ".txt"
-    norm_file = base_path + f"_linear_{SCALE_FACTOR}.norm"
+    file = base_path + f"_linear_{SCALE_FACTOR}.norm"
 
     # output file with extracted flatline events
-    unnorm_out_file = base_path + f"_flatline_events.txt"
-    norm_out_file = base_path + f"_linear_{SCALE_FACTOR}_flatline_events.norm"
+    out_file = base_path + f"_linear_{SCALE_FACTOR}_flatline_events.norm"
 
     # pos/neg sequence files 
     sequence_dir = f"{DATA_DIR}/{DATASET}/postprocessing/excerpt{EXCERPT}/"
