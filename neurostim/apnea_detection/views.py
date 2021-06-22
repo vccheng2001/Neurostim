@@ -22,6 +22,7 @@ from json import JSONEncoder
 sys.path.append(os.path.abspath(os.path.join('../')))
 print(f'Added {sys.path[-1]} to path')
 from flatline_detection import FlatlineDetection
+from lstm import LSTM
 
 
 import pickle 
@@ -137,11 +138,12 @@ def flatline_detection(request):
     fd = FlatlineDetection(ROOT_DIR, params.dataset, params.apnea_type, \
         params.excerpt, params.sample_rate, params.scale_factor)
 
-
     print('------Running flatline detection-------')
     flatline_fig, flatline_times, nonflatline_fig, nonflatline_times = fd.annotate_events(15, 0.1, 0.95)
     flatline_fig = flatline_fig.to_html(full_html=False)
     nonflatline_fig = nonflatline_fig.to_html(full_html=False)
+
+    fd.output_apnea_files(flatline_times, nonflatline_times)
 
     # save as context
     context['flatline_fig'] = flatline_fig
@@ -150,8 +152,34 @@ def flatline_detection(request):
     context['num_nonflatline'] = len(nonflatline_times)
     context['params'] = params
 
+
     return render(request, "apnea_detection/flatline_detection.html", context=context) 
 
+
+def train_test(request):
+    context = {}
+    params = UploadFile.objects.latest('id') 
+    # 
+    if request.method == "POST":
+
+        if request.POST.get('test'):
+            model = LSTM(ROOT_DIR, params.dataset, params.apnea_type, params.excerpt, 64, 10)
+            test_error = model.test()
+            context['message'] = f"Final test error: {test_error}"
+            return render(request, "apnea_detection/train_test.html", context=context) 
+        else:
+            model = LSTM(ROOT_DIR, params.dataset, params.apnea_type, params.excerpt, 64, 10)
+            saved_model_file, train_loss = model.train()
+            context['message'] = f"Saved model to {saved_model_file}, train loss: {train_loss}"
+            return render(request, "apnea_detection/train_test.html", context=context) 
+
+    else:
+        return render(request, "apnea_detection/train_test.html", context=context) 
+ 
+
+    
+
+    return render(request, "apnea_detection/train_test.html", context=context) 
 
 
 ''' Normalizes a file specified by user '''

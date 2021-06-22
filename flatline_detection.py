@@ -38,17 +38,16 @@ class FlatlineDetection():
         self.data_dir = os.path.join(self.root_dir, "data")
         self.info_dir = os.path.join(self.root_dir, "info")
 
-        self.base_path = f"{self.data_dir}/{self.dataset}/preprocessing/excerpt{self.excerpt}/filtered_{self.sample_rate}hz" 
+        self.base_path = f"{self.data_dir}/{self.dataset}/preprocessing/excerpt{self.excerpt}/{self.dataset}_{self.apnea_type}_ex{self.excerpt}_sr{self.sample_rate}"
         # path to unnormalized, normalized files 
-        self.in_file     = f"{self.base_path}_linear_{self.scale_factor}.norm"
+        self.in_file     = f"{self.base_path}_sc{self.scale_factor}.txt"
         # output file with extracted flatline events
-        self.out_file = f"{self.base_path}_linear_{self.scale_factor}_flatline_events.norm"
+        self.out_file = f"{self.base_path}_sc{self.scale_factor}_flatline_events.txt"
         # pos/neg sequence files 
         self.sequence_dir = f"{self.data_dir}/{self.dataset}/postprocessing/excerpt{self.excerpt}/"
         # default parameters 
         self.seconds_before_apnea = 10
         self.seconds_after_apnea = 5
-
         self.window_size_seconds = 10 # sliding window # seconds
         
 

@@ -32,4 +32,11 @@
 {{ nonflatline_fig |safe }}
 {% endif %}
 
+<div class="container">
+	<form method="post" action="{% url 'train_test' %}">
+		<button type="submit" class="btn btn-primary btn-lg">Begin training/testing</button>
+	{% csrf_token %}
+	</form>
+</div>
+
 {% endblock %}

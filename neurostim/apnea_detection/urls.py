@@ -12,6 +12,6 @@ urlpatterns =[
     # pipeline
     path('visualize/', views.visualize, name="visualize"),
     path('flatline_detection/', views.flatline_detection, name="flatline_detection"),
-    path('inference/', views.inference, name="inference"),
+    path('train_test/', views.train_test, name="train_test"),
     path('results/', views.results, name="results")
 ]

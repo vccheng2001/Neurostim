@@ -59,7 +59,7 @@ class LSTM_Module(nn.Module):
 
     
 class LSTM:
-    def __init__(self, dataset, apnea_type, excerpt, batch_size, epochs):
+    def __init__(self, root_dir, dataset, apnea_type, excerpt, batch_size, epochs):
         # hyper-parameters
         self.init_lr = 0.01
         self.decay_factor = 0.7
@@ -71,13 +71,14 @@ class LSTM:
         self.batch_size = batch_size
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
+
+
+        # directories 
+        self.root_dir = root_dir
+
+        self.data_root = os.path.join(self.root_dir, "data/")
+        self.save_model_root = os.path.join(self.root_dir, "saved_models/")
         self.epochs = epochs
-
-        # dataset/excerpt parameters 
-        self.save_model_root = "saved_models/"
-        predictions_root = "predictions/"
-        self.data_root = "data/"
-
 
         # dataset 
         self.data = ApneaDataloader(self.data_root,self.dataset,self.apnea_type,self.excerpt, self.batch_size)
@@ -167,6 +168,7 @@ class LSTM:
         torch.save(self.model.state_dict(), self.save_model_path)
 
         print('Finished training')
+        return self.save_model_path, training_losses[-1]
 
         ############################################################################
     def test(self):
@@ -202,9 +204,10 @@ class LSTM:
             print(f"Average test accuracy: {1-avg_test_error}")
         # Save test errors 
         np.savetxt(self.save_base_path + "_test_errors.csv", np.array([avg_test_error]),  delimiter=",")
+        print('returning')
+        return avg_test_error
 
 
-
-l = LSTM('dreams','osa',1,64, 10)
-# l.train()
-l.test()
+# l = LSTM('dreams','osa',1,64, 10)
+# # l.train()
+# l.test()

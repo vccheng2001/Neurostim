@@ -14,6 +14,8 @@ class ApneaDataset(Dataset):
     # load the dataset
     def __init__(self, root, dataset, apnea_type, excerpt):
         # load the csv file as a dataframe
+        print('root', root)
+        print(os.getcwd())
         self.root = root
         self.dataset = dataset
         self.apnea_type = apnea_type
