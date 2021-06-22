@@ -12,9 +12,19 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 
 # forms 
-from apnea_detection.forms import LoginForm, RegisterForm, PreprocessingForm, ModelHyperParamsForm
-from apnea_detection.models import Preprocessing, ModelHyperParams
+from apnea_detection.forms import LoginForm, RegisterForm, UploadFileForm
+from apnea_detection.models import UploadFile
+import sys
+import os
+import glob
+import json
+from json import JSONEncoder
+sys.path.append(os.path.abspath(os.path.join('../')))
+print(f'Added {sys.path[-1]} to path')
+from flatline_detection import FlatlineDetection
 
+
+import pickle 
 import pandas as pd
 import os
 import csv
@@ -22,16 +32,25 @@ from datetime import date, datetime
 from subprocess import Popen, PIPE, STDOUT, CalledProcessError
 from sklearn import linear_model 
 from pathlib import Path
-
+import re 
+# plot
+import plotly
+from plotly.offline import plot
+from plotly.graph_objs import Scatter
 # disable debugging info
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 
-# directories 
+# root directory is 
 ROOT_DIR = Path(__file__).parents[2]
 print("ROOT", ROOT_DIR)
 DATA_DIR = os.path.join(ROOT_DIR, "data")
 INFO_DIR = os.path.join(ROOT_DIR, "info")
 MODEL_DIR = os.path.join(ROOT_DIR, "saved_models")
+
+import matplotlib
+matplotlib.use('agg')
+
+
 
 ''' helper function to convert csv to html '''
 def csv_to_html(file):
@@ -39,48 +58,104 @@ def csv_to_html(file):
     html = df.to_html(classes='table table-striped table-bordered table-responsive table-sm')
     return html
 
-
 @login_required
 def home(request):
+    
     context = {}
     return render(request, "apnea_detection/home.html", context=context)
 
-@login_required
-def select_model(request):
-    context = {}
-     # most recent preprocessing parameters
-    preprocessing_params = Preprocessing.objects.latest('id') # all().order_by('-id')[:5]
+def handle_uploaded_file(file, form):
+    match = re.search(r'(.*)_(.*)_ex(\d)_sr(\d)_sc(\d+)', file.name)
+    if match:
+        return match.groups()
+    else:
+        return None
 
-    context["model"] = preprocessing_params
-    return render(request, "apnea_detection/select_model.html", context=context) 
+
+
 
 @login_required
-def preprocessing(request):
+def visualize(request):
     context = {}
-    logs_file = f"{INFO_DIR}/log.csv"
-    if request.method == "POST":
-        form = PreprocessingForm(request.POST)
+
+    # if user submitted file 
+    if request.method == 'POST':
+        print('-----Generating visualization------')
+        # Visualize uploaded file 
+        form = UploadFileForm(request.POST, request.FILES)
         if form.is_valid():
-            try:
-                # normalize file and save form
-                normalized_file, flatline_detection_params = normalize(form.cleaned_data)
-                run_flatline_detection(flatline_detection_params)
-                form.save()
+            # returns model instance that was created/updated 
+            params  = form.save()
 
-                # success
-                context["message"] = f"Successfully saved normalized file to {normalized_file}."
-                context['form'] =  PreprocessingForm()
-                context['logs'] = csv_to_html(logs_file)
-                return render(request, "apnea_detection/preprocessing.html", context=context)
+            match = handle_uploaded_file(request.FILES['file'], form)
+            # find file in local directory 
+            if match is not None:
+                dataset, apnea_type, excerpt, sample_rate, scale_factor = match 
 
-            except Exception as error_message:
-                # else throw error 
-                context["error_heading"] = "Error during normalization step. Please try again."
-                context["error_message"] = error_message
+                # update parameters 
+                params.dataset = dataset
+                params.apnea_type = apnea_type
+                params.excerpt = excerpt
+                params.sample_rate = sample_rate
+                params.scale_factor = scale_factor
+                params.save()
+ 
+            else:
+                context["error_message"] = "Error: could not parse file. Make sure the file name is of the form \
+                                            <dataset>_<apnea_type>_ex<excerpt>, sr<sample_rate>, sc<scale_factor>"
                 return render(request, "apnea_detection/error.html", context=context)
-    # if GET request
-    context = {'form': PreprocessingForm(), 'logs': csv_to_html(logs_file)} 
-    return render(request, "apnea_detection/preprocessing.html", context=context)
+            fd = FlatlineDetection(ROOT_DIR, dataset, apnea_type, excerpt, sample_rate, scale_factor)
+            
+            # visualize 
+            fig = fd.visualize()
+
+            # display original graph 
+            orig_graph = fig.to_html(full_html=False, default_height=500, default_width=700)
+            context['orig_graph'] = orig_graph
+            context['params'] = params
+            context['show_flatline_button'] = True
+            new_form = UploadFileForm()
+            context["new_form"] = new_form
+            return render(request, "apnea_detection/visualize.html", context=context) 
+
+    # else display blank upload form
+    else:
+        new_form = UploadFileForm()
+        context["new_form"] = new_form
+
+    return render(request, "apnea_detection/visualize.html", context=context) 
+
+
+def flatline_detection(request):
+    context = {}
+    
+    params = UploadFile.objects.latest('id') # or date_updated
+
+    # if no file found
+    if not params:
+        context["error_message"] = "No file to run flatline detection on. Please return to previous step."
+        return render(request, "apnea_detection/error.html", context=context) 
+    
+    # flatline detection 
+    fd = FlatlineDetection(ROOT_DIR, params.dataset, params.apnea_type, \
+        params.excerpt, params.sample_rate, params.scale_factor)
+
+
+    print('------Running flatline detection-------')
+    flatline_fig, flatline_times, nonflatline_fig, nonflatline_times = fd.annotate_events(15, 0.1, 0.95)
+    flatline_fig = flatline_fig.to_html(full_html=False)
+    nonflatline_fig = nonflatline_fig.to_html(full_html=False)
+
+    # save as context
+    context['flatline_fig'] = flatline_fig
+    context['nonflatline_fig'] = nonflatline_fig
+    context['num_flatline'] = len(flatline_times)
+    context['num_nonflatline'] = len(nonflatline_times)
+    context['params'] = params
+
+    return render(request, "apnea_detection/flatline_detection.html", context=context) 
+
+
 
 ''' Normalizes a file specified by user '''
 def normalize(form):
@@ -136,27 +211,8 @@ def normalize(form):
     return normalized_file_relpath, flatline_detection_params
 
 
-def run_flatline_detection(flatline_detection_params):
-    dataset, apnea_type, excerpt, sample_rate, scale_factor = flatline_detection_params
-   
-
-    cmd = ["python", "flatline_detection.py", 
-            "-d",  str(dataset), 
-            "-a",  str(apnea_type),
-            "-ex", str(excerpt),
-            "-sr", str(sample_rate),
-            "-sc", str(scale_factor)]
-
-
-    proc = Popen(cmd, universal_newlines=True, 
-                      stdout=PIPE, stderr=PIPE)
-
-    stdout, stderr = proc.communicate()
-    return proc.returncode, stdout, stderr
-
 @login_required
 def inference(request):
-
     context = {}
     results_file = f"{INFO_DIR}/summary_results.csv"
 

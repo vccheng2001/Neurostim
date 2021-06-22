@@ -10,7 +10,8 @@ urlpatterns =[
     path('home', views.home, name="home"),
 
     # pipeline
-    path('preprocessing/', views.preprocessing, name="preprocessing"),
+    path('visualize/', views.visualize, name="visualize"),
+    path('flatline_detection/', views.flatline_detection, name="flatline_detection"),
     path('inference/', views.inference, name="inference"),
     path('results/', views.results, name="results")
 ]

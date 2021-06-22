@@ -18,28 +18,12 @@ NORMALIZATION_TYPES = [
         ("linear", "linear scaling"),
         ("nonlinear", "nonlinear scaling")
 ]
-# Create your models here.
-# User profile 
-class Preprocessing(models.Model):  
-    dataset = models.CharField(max_length = 20,
-                                choices = DATASETS,
-                                default = "DREAMS")
-    apnea_type = models.CharField(max_length = 20,
-                                choices = APNEA_TYPES,
-                                default = "OSA")
-    excerpt = models.PositiveIntegerField(default=1)
-    norm = models.CharField(max_length = 20,
-                                choices = NORMALIZATION_TYPES,
-                                default = "Linear") 
-    slope_threshold= models.FloatField(default=0.025)
-    scale_factor_low = models.PositiveIntegerField(default=1)
-    scale_factor_high = models.PositiveIntegerField(default=100) 
-    sample_rate = models.PositiveIntegerField(default=8)  
 
 
-# Model hyperparameters
-class ModelHyperParams(models.Model):  
-    batch_size = models.PositiveIntegerField(default=32)
-    epochs = models.PositiveIntegerField(default=10)
-    positive_threshold = models.FloatField(default=0.7)
-
+class UploadFile(models.Model):
+    file = models.FileField()
+    dataset = models.CharField(max_length = 20, blank=True)
+    apnea_type = models.CharField(max_length = 20, blank=True)
+    excerpt = models.PositiveIntegerField(default=1, blank=True)
+    sample_rate = models.PositiveIntegerField(default=8, blank=True)  
+    scale_factor = models.PositiveIntegerField(default=1, blank=True) 

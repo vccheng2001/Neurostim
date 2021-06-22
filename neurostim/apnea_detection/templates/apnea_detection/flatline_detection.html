@@ -1,0 +1,35 @@
+{% extends "apnea_detection/base.html" %}
+
+
+{% block heading %}
+<div class="jumbotron text-center">
+    <h1 class="display-4">Flatline Detection Algorithm</h1>
+</div>
+{% endblock %}
+
+
+
+{% block body %}
+<div class="container">
+<h2> Flatline detection algorithm</h2>
+<hr>
+<h3> Parsed {{num_flatline}} positive sequences, {{num_nonflatline}} negative sequences (zoom in to see details)</h3>
+
+<ul>
+	<li>Dataset: {{params.dataset}}</li>
+	<li>Apnea type: {{params.apnea_type}}</li>
+	<li>Excerpt: {{params.excerpt}}</li>
+	<li>Sample rate: {{params.sample_rate}}</li>
+	<li>Scale factor: {{params.scale_factor}}</li>
+</ul>
+</div>
+<!-- Detected apnea events graph -->
+{% if flatline_fig %}
+{{ flatline_fig |safe }}
+{% endif %}
+
+{% if nonflatline_fig %}
+{{ nonflatline_fig |safe }}
+{% endif %}
+
+{% endblock %}

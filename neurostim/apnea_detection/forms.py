@@ -2,11 +2,29 @@ from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.core.exceptions import ValidationError
-from apnea_detection.models import Preprocessing, ModelHyperParams
+from apnea_detection.models import UploadFile
 
-# max image size 
-MAX_UPLOAD_SIZE = 2500000
 
+
+class UploadFileForm(forms.ModelForm):
+    file = forms.FileField(required=False)
+    
+    def __init__(self, *args, **kwargs):
+        super(UploadFileForm, self).__init__(*args, **kwargs)
+        self.fields['file'].widget.attrs.update({
+            'class': 'form-control',
+            "name":'Upload file here'})
+            
+        
+    class Meta:
+        model = UploadFile
+        fields = ['file', 'dataset', 'apnea_type', 'excerpt', 'sample_rate', 'scale_factor']
+        widgets = {'file': forms.HiddenInput(),
+                   'dataset': forms.HiddenInput(),
+                   'apnea_type': forms.HiddenInput(),
+                   'excerpt': forms.HiddenInput(),
+                   'sample_rate': forms.HiddenInput(),
+                   'scale_factor': forms.HiddenInput()}
 # login form 
 class LoginForm(forms.Form):
     username    = forms.CharField(max_length = 20)
@@ -81,21 +99,3 @@ class RegisterForm(forms.Form):
         return username
 
 
-# Normalization + Flatline Detection
-class PreprocessingForm(forms.ModelForm):
-  
-    class Meta:
-        model = Preprocessing
-        exclude = []
-
-# ML Model
-# Normalization
-class ModelHyperParamsForm(forms.ModelForm):
-  
-    class Meta:
-        model = ModelHyperParams
-        exclude = []
-
-
-# class ModelHyperParamsForm(forms.ModelForm):
-#     class M
