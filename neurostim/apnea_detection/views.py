@@ -71,9 +71,6 @@ def handle_uploaded_file(file, form):
     else:
         return None
 
-
-
-
 @login_required
 def visualize(request):
     context = {}
@@ -223,7 +220,6 @@ def inference(request):
 
     try:
         test_acc = run_inference(preprocessing_params, test=True)
-        print('test acc', test_acc)
         # results = get_summary_results(results_file)
         # save model hyperparameters, display success message
         context["message"] = f"Successfully performed inference."
@@ -249,41 +245,6 @@ def get_summary_results(results_file):
     results_dict = result.to_dict('r')[0]
     return results_dict
 
-
-
-''' make prediction using specified model hyperparameters '''
-def run_inference(preprocessing_params, test):
-    apnea_type = preprocessing_params.apnea_type
-    dataset = preprocessing_params.dataset
-    excerpt = preprocessing_params.excerpt
-
-    # run apnea detection script
-
-    print("dataset: ", dataset, "apnea_type: ", apnea_type, "excerpt: ", str(excerpt))
-
-    print(os.getcwd())
-    cmd = ["python3", "train.py", 
-            "-d", dataset, 
-            "-a", apnea_type,
-            "-ex", str(excerpt),
-            "--test"]
-
-    # os.environ["PYTHONUNBUFFERED"] = "1"
-
-    # proc = Popen(cmd, cwd="../", universal_newlines=True, 
-    #                   stdout=PIPE,  bufsize=1)
-     
-    # stdout, stderr = proc.communicate()
-    test_acc = ""
-    with Popen(cmd, cwd="../", stdout=PIPE, bufsize=1, universal_newlines=True) as p:
-        for line in p.stdout:
-            print(line, end='') # process line here
-            if "Average test accuracy" in line:
-                test_acc = line.split(":")[1]
-
-    if p.returncode != 0:
-        raise CalledProcessError(p.returncode, p.args)
-    return test_acc
 
 @login_required
 def results(request):

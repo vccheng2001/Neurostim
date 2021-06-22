@@ -3,12 +3,11 @@ import os
 import numpy as np
 
 from lstm import LSTM
-from dataloader import ApneaDataset
+from dataloader import ApneaDataloader
 
 import torch
 from torch import nn
 from torch.optim import Adam
-from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 import matplotlib.pyplot as plt
@@ -16,12 +15,14 @@ import argparse
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
+
+    
 def main():
     # hyper-parameters
     init_lr = 0.01
     decay_factor = 0.7
-    test_frac = 0.3
     pos_pred_threshold = 0.7
+    batch_size = 64
 
 
     # dataset/excerpt parameters 
@@ -29,17 +30,14 @@ def main():
     predictions_root = "predictions/"
     data_root = "data/"
 
-    # dataset 
-    data = ApneaDataset(data_root,dataset,apnea_type,excerpt)
-    train_data, test_data = data.get_splits(test_frac)
-    
-    # prepare data loaders
-    train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
-    
 
-    num_train = len(train_data)
-    num_test = len(test_data)
+    # dataset 
+    data = ApneaDataloader(data_root,dataset,apnea_type,excerpt, batch_size)
+    train_loader = data.get_train()
+    test_loader = data.get_test()
+
+    num_train = len(data.train_data)
+    num_test = len(data.test_data)
     print('Train dataset size: ', num_train)
     print('Test dataset size: ', num_test)
 
@@ -125,10 +123,10 @@ def main():
 
         ############################################################################
 
-    # if test:
+    if test:
     
-    #     # load trained model
-    #     model.load_state_dict(torch.load(save_model_path))
+        # load trained model
+        model.load_state_dict(torch.load(save_model_path))
         # begin test 
         model.eval()
         test_losses = []

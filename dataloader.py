@@ -5,7 +5,7 @@ import os
 import sys
 import random
 import torch 
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
 from torch.utils.data import random_split
 
 '''Split dataset into train/test in preparation for apnea detection model'''
@@ -89,6 +89,24 @@ class ApneaDataset(Dataset):
 
 
         return data, label, files
+
+class ApneaDataloader(DataLoader):
+    def __init__(self, root, dataset, apnea_type, excerpt, batch_size):
+        self.dataset = ApneaDataset(root, dataset, apnea_type, excerpt)
+        self.test_frac = 0.3
+        self.batch_size = batch_size
+        self.train_data, self.test_data = self.dataset.get_splits(self.test_frac)
+
+    def get_train(self):
+        self.train_loader = DataLoader(self.train_data, batch_size=self.batch_size, shuffle=True)
+        return self.train_loader
+
+    def get_test(self):
+        self.test_loader = DataLoader(self.test_data, batch_size=self.batch_size, shuffle=False)
+        return self.test_loader
+
+
+
 
 # prepare the data
 if __name__ == "__main__":
