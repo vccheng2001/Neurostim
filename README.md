@@ -41,6 +41,7 @@ lstm.py: ML model and training/testing
  ```bash
  git clone https://github.com/vccheng2001/Apnea-Detection-LSTM.git
  cd Apnea-Detection-LSTM/ 
+ git checkout upgrade
  pip3 install -r requirements.txt  (install all dependencies)
  ```
  
