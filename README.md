@@ -7,7 +7,7 @@ Training/Inference
 
 ## File structure
 ```
-data/:  includes all data
+data/:  includes all dataset files (note: raw data files must be of the form <dataset>_<apnea_type>_ex<excerpt>_sr<sample_rate>_sc<scale_factor>.txt
 info/:  metadata
 neurostim/: django webapp 
 flatline_detection.py: flatline detection algorithm
@@ -32,7 +32,7 @@ lstm.py: ML model and training/testing
  * neurostim/
  * README.md
 
-- Datasets supp: mit, dreams, ucddb, patch
+- Datasets supported: mit, dreams, ucddb, patch
 - types of apnea: obstructive sleep apnea (osa), hypopnea (osahs)
 
 
@@ -41,7 +41,7 @@ lstm.py: ML model and training/testing
  ```bash
  git clone https://github.com/vccheng2001/Apnea-Detection-LSTM.git
  cd Apnea-Detection-LSTM/ 
- pip3 install requirements.txt  (install all dependencies)
+ pip3 install -r requirements.txt  (install all dependencies)
  ```
  
 ## Running the webapp locally
