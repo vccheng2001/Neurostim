@@ -55,7 +55,7 @@ class FlatlineDetection():
     def visualize(self):
         # plot original data 
         df = pd.read_csv(self.in_file, delimiter=',')
-        df = df.iloc[:10000]
+        # df = df.iloc[:10000]
         pd.options.plotting.backend = "plotly"
         fig = df.plot(x='Time', y="Value",  width=1700, height=600)
 
@@ -90,7 +90,7 @@ class FlatlineDetection():
         df = pd.read_csv(self.in_file, delimiter=',')
         
         # apnea start time
-        for start_time, end_time  in flatline_times:
+        for start_time, end_time in flatline_times:
 
             pos_out_file = f'{start_time}.txt'
             try:

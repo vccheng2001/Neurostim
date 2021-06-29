@@ -39,4 +39,16 @@
 	</form>
 </div>
 
+
+<div class="container">
+	<br>
+	<h2> Flatline Detection Algorithm</h2>
+	<hr>
+	<form action="{% url 'flatline_detection' %}" method="post"> 
+		{% csrf_token %}    
+		{{ flatline_params_form }}
+		<button type="submit" class="btn btn-secondary btn-lg">Run flatline detection</button>
+	</form>
+</div>
+
 {% endblock %}

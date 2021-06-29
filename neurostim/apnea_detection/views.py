@@ -12,8 +12,8 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 
 # forms 
-from apnea_detection.forms import LoginForm, RegisterForm, UploadFileForm
-from apnea_detection.models import UploadFile
+from apnea_detection.forms import LoginForm, RegisterForm, UploadFileForm, FlatlineDetectionParamsForm
+from apnea_detection.models import UploadFile, FlatlineDetectionParams
 import sys
 import os
 import glob
@@ -59,6 +59,10 @@ def csv_to_html(file):
     html = df.to_html(classes='table table-striped table-bordered table-responsive table-sm')
     return html
 
+
+#####################################################################
+#                     Home page
+####################################################################
 @login_required
 def home(request):
     
@@ -72,6 +76,10 @@ def handle_uploaded_file(file, form):
     else:
         return None
 
+
+#####################################################################
+#                    Visualize uploaded file
+####################################################################
 @login_required
 def visualize(request):
     context = {}
@@ -112,19 +120,33 @@ def visualize(request):
             context['orig_graph'] = orig_graph
             context['params'] = params
             context['show_flatline_button'] = True
-            new_form = UploadFileForm()
-            context["new_form"] = new_form
+            upload_file_form = UploadFileForm()
+            flatline_params_form = FlatlineDetectionParamsForm()
+
+            context["upload_file_form"] = upload_file_form
+            context["flatline_params_form"] = flatline_params_form
             return render(request, "apnea_detection/visualize.html", context=context) 
 
     # else display blank upload form
     else:
-        new_form = UploadFileForm()
-        context["new_form"] = new_form
+        upload_file_form= UploadFileForm()
+        context["upload_file_form"] = upload_file_form
 
     return render(request, "apnea_detection/visualize.html", context=context) 
 
 
+
+#####################################################################
+#                     Flatline Detection
+####################################################################
+
 def flatline_detection(request):
+
+    if request.method == "POST":
+        ft = float(request.POST.get('flatline_thresh'))
+        lt = float(request.POST.get('low_thresh'))
+        ht = float(request.POST.get('high_thresh'))
+
     context = {}
     
     params = UploadFile.objects.latest('id') # or date_updated
@@ -139,7 +161,7 @@ def flatline_detection(request):
         params.excerpt, params.sample_rate, params.scale_factor)
 
     print('------Running flatline detection-------')
-    flatline_fig, flatline_times, nonflatline_fig, nonflatline_times = fd.annotate_events(15, 0.1, 0.95)
+    flatline_fig, flatline_times, nonflatline_fig, nonflatline_times = fd.annotate_events(ft, lt, ht)
     flatline_fig = flatline_fig.to_html(full_html=False)
     nonflatline_fig = nonflatline_fig.to_html(full_html=False)
 
@@ -152,10 +174,17 @@ def flatline_detection(request):
     context['num_nonflatline'] = len(nonflatline_times)
     context['params'] = params
 
+    flatline_params_form = FlatlineDetectionParamsForm()
+    context['flatline_params_form'] = flatline_params_form
+
 
     return render(request, "apnea_detection/flatline_detection.html", context=context) 
 
 
+
+#####################################################################
+#                     Train/test
+####################################################################
 def train_test(request):
     context = {}
     params = UploadFile.objects.latest('id') 
@@ -179,9 +208,9 @@ def train_test(request):
 
     
 
-    return render(request, "apnea_detection/train_test.html", context=context) 
-
-
+#####################################################################
+#                     Normalization
+####################################################################
 ''' Normalizes a file specified by user '''
 def normalize(form):
     # cleaned form 
@@ -236,43 +265,10 @@ def normalize(form):
     return normalized_file_relpath, flatline_detection_params
 
 
-@login_required
-def inference(request):
-    context = {}
-    results_file = f"{INFO_DIR}/summary_results.csv"
 
-    # most recent preprocessing parameters
-    preprocessing_params = Preprocessing.objects.last()
-    print('preparams', preprocessing_params)
-
-
-    try:
-        test_acc = run_inference(preprocessing_params, test=True)
-        # results = get_summary_results(results_file)
-        # save model hyperparameters, display success message
-        context["message"] = f"Successfully performed inference."
-        context["results"] = results
-        context["preprocessing_params"] = preprocessing_params
-        context["test_acc"] = test_acc
-        return render(request, "apnea_detection/inference.html", context=context)
-            
-            
-    except Exception as error_message:
-        # else throw error 
-        context["error_heading"] = "Error during inference step. Please try again."
-        context["error_message"] = error_message
-        return render(request, "apnea_detection/error.html", context=context)
-    return render(request, "apnea_detection/inference.html", context=context)
-
-
-
-''' Retrieves results of latest run '''
-def get_summary_results(results_file):
-    result = pd.read_csv(results_file, index_col=None, squeeze=True)
-    result = result.iloc[:,-8:].tail(1)
-    results_dict = result.to_dict('r')[0]
-    return results_dict
-
+#####################################################################
+#                     Results
+####################################################################
 
 @login_required
 def results(request):

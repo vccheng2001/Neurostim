@@ -12,13 +12,13 @@
 
 
 <!---- Upload file -->
-{% if new_form %}
+{% if upload_file_form %}
 <div class="container">
 	<h2> Upload a new file to visualize </h2>
 	<hr>
 	<form action="." method="post" enctype="multipart/form-data"> 
 		{% csrf_token %}    
-		{{ new_form }}
+		{{ upload_file_form }}
 		<button type="submit" class="btn btn-secondary btn-lg">Upload new file</button>
 	</form>
 </div>
@@ -44,12 +44,16 @@
 <!---- Button to run flatline detection -->
 
 {% if show_flatline_button %}
-	<div class="container">
-		<form method="post" action="{% url 'flatline_detection' %}">
-			<button type="submit" class="btn btn-primary btn-lg">Run flatline detection</button>
-		{% csrf_token %}
-		</form>
-	</div>
+<div class="container">
+	<br>
+	<h2> Flatline Detection Algorithm </h2>
+	<hr>
+	<form action="{% url 'flatline_detection' %}" method="post"> 
+		{% csrf_token %}    
+		{{ flatline_params_form }}
+		<button type="submit" class="btn btn-secondary btn-lg">Run flatline detection</button>
+	</form>
+</div>
 {% endif %}
 
 {% endblock %}

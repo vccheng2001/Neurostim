@@ -2,7 +2,7 @@ from django.db import models
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.forms.fields import IntegerField
-
+from decimal import Decimal
 
 DATASETS = [
         ("dreams", "DREAMS Apnea database"),
@@ -27,3 +27,8 @@ class UploadFile(models.Model):
     excerpt = models.PositiveIntegerField(default=1, blank=True)
     sample_rate = models.PositiveIntegerField(default=8, blank=True)  
     scale_factor = models.PositiveIntegerField(default=1, blank=True) 
+
+class FlatlineDetectionParams(models.Model):
+    flatline_thresh = models.FloatField(default=10, blank=True)
+    low_thresh = models.DecimalField(max_digits=3, decimal_places=2, blank=True, default=0.1)
+    high_thresh = models.DecimalField(max_digits=3, decimal_places=2, blank=True, default=0.5) 

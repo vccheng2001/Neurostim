@@ -2,9 +2,25 @@ from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.core.exceptions import ValidationError
-from apnea_detection.models import UploadFile
+from apnea_detection.models import UploadFile, FlatlineDetectionParams
 
 
+class FlatlineDetectionParamsForm(forms.ModelForm):
+    
+    def __init__(self, *args, **kwargs):
+        super(FlatlineDetectionParamsForm, self).__init__(*args, **kwargs)
+        for field in self.fields:
+            self.fields[field].widget.attrs.update({
+                'class': 'form-control',
+                "name":field})
+
+        
+    class Meta:
+        model = FlatlineDetectionParams
+        fields = ['flatline_thresh', 'low_thresh', 'high_thresh']
+
+        
+# login form 
 
 class UploadFileForm(forms.ModelForm):
     file = forms.FileField(required=False)
