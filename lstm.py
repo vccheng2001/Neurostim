@@ -1,7 +1,7 @@
 
 import os
 import numpy as np
-
+import csv
 from dataloader import ApneaDataloader
 
 import torch
@@ -11,6 +11,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 import matplotlib.pyplot as plt
 import argparse
+from datetime import datetime
 
 np.set_printoptions(suppress=True) # don't use scientific notation
 
@@ -77,6 +78,8 @@ class LSTM:
         self.root_dir = root_dir
 
         self.data_root = os.path.join(self.root_dir, "data/")
+        self.results_root = os.path.join(self.root_dir, "results/")
+
         self.save_model_root = os.path.join(self.root_dir, "saved_models/")
         self.epochs = epochs
 
@@ -85,10 +88,10 @@ class LSTM:
         self.train_loader = self.data.get_train()
         self.test_loader = self.data.get_test()
 
-        num_train = len(self.data.train_data)
-        num_test = len(self.data.test_data)
-        print('Train dataset size: ', num_train)
-        print('Test dataset size: ', num_test)
+        self.num_train = len(self.data.train_data)
+        self.num_test = len(self.data.test_data)
+        print('Train dataset size: ', self.num_train)
+        print('Test dataset size: ', self.num_test)
 
         
         # Model 
@@ -112,7 +115,7 @@ class LSTM:
             os.makedirs(self.save_base_path)
         self.save_model_path = self.save_base_path + ".ckpt"
 
-    def train(self):
+    def train(self, save_model=False):
         self.model.train()
         training_losses = []
         training_errors = []
@@ -153,6 +156,8 @@ class LSTM:
             training_errors.append(train_errors/n_batch)      
             print(f"Loss for epoch {epoch}: {train_loss/n_batch}")
         
+
+        self.train_loss = train_loss # last train loss
         # Visualize loss history
         plt.plot(range(self.epochs), training_losses, 'r--')
         plt.plot(range(self.epochs), training_errors, 'b-')
@@ -164,17 +169,18 @@ class LSTM:
         plt.savefig(self.save_base_path + ".png")
         plt.show()
 
-        print("Saving to... ", self.save_model_path)
-        torch.save(self.model.state_dict(), self.save_model_path)
+        if save_model:
+            print("Saving to... ", self.save_model_path)
+            torch.save(self.model.state_dict(), self.save_model_path)
 
         print('Finished training')
-        return self.save_model_path, training_losses[-1]
+        # return self.save_model_path, training_losses[-1]
 
-        ############################################################################
-    def test(self):
+    #     ############################################################################
+    # def test(self):
     
-        # load trained model
-        self.model.load_state_dict(torch.load(self.save_model_path))
+    #     # load trained model
+    #     self.model.load_state_dict(torch.load(self.save_model_path))
         # begin test 
         self.model.eval()
         test_losses = []
@@ -195,17 +201,39 @@ class LSTM:
 
                 errs = torch.count_nonzero(pred_bin - label)
                 err_rate = errs/N
-                test_errors += [err_rate]
-                # if n_batch % 5 == 0:
-                #     np.savetxt(f"{self.save_base_path}test_batch{n_batch}.csv", np.hstack((pred.detach().numpy(), pred_bin.detach().numpy(), label.detach().numpy())), delimiter=",")
+                test_errors.append(err_rate)
+                if n_batch % 5 == 0:
+                    # np.savetxt(f"{self.save_base_path}test_batch{n_batch}.csv", np.hstack((pred.detach().numpy(), pred_bin.detach().numpy(), label.detach().numpy())), delimiter=",")
+                    print(f"batch #{n_batch} loss: {loss.item()}, acc: {1-err_rate}")
 
-                print(f"batch #{n_batch} loss: {loss.item()}, acc: {1-err_rate}")
-            avg_test_error = sum(test_errors)/n_batch
-            print(f"Average test accuracy: {1-avg_test_error}")
-        # Save test errors 
-        np.savetxt(self.save_base_path + "_test_errors.csv", np.array([avg_test_error]),  delimiter=",")
-        print('returning')
-        return avg_test_error
+            print('n_batch', n_batch)
+            self.avg_test_error = np.mean(test_errors)
+            print(f"Average test accuracy: {1-self.avg_test_error}")
+
+
+
+        # write new row to log.txt 
+        results_file = self.results_root + "results.csv"
+        file_relpath = os.path.relpath(results_file, self.root_dir)
+        with open(results_file, 'a', newline='\n') as results:
+            fieldnames = ['time','dataset','apnea_type','excerpt', \
+                      'file','test_acc','n_train','n_test','epochs']
+            writer = csv.DictWriter(results, fieldnames=fieldnames)
+            print('Writing row....\n')
+            time_format = '%m/%d/%Y %H:%M %p'
+            writer.writerow({'time': datetime.now().strftime(time_format),
+                            'dataset': self.dataset,
+                            'apnea_type': self.apnea_type,
+                            'excerpt': self.excerpt,
+                            # 'sample_rate': self.sample_rate,
+                            # 'scale_factor': self.scale_factor,
+                            'test_acc': 1-self.avg_test_error,
+                            'file': file_relpath,
+                            'n_train': self.num_train,
+                            'n_test': self.num_test,
+                            'epochs': self.epochs})
+
+        return self.train_loss, self.avg_test_error
 
 
 # l = LSTM('dreams','osa',1,64, 10)

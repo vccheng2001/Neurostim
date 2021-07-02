@@ -47,7 +47,7 @@ print("ROOT", ROOT_DIR)
 DATA_DIR = os.path.join(ROOT_DIR, "data")
 INFO_DIR = os.path.join(ROOT_DIR, "info")
 MODEL_DIR = os.path.join(ROOT_DIR, "saved_models")
-
+RESULTS_DIR = os.path.join(ROOT_DIR, "results")
 import matplotlib
 matplotlib.use('agg')
 
@@ -70,7 +70,7 @@ def home(request):
     return render(request, "apnea_detection/home.html", context=context)
 
 def handle_uploaded_file(file, form):
-    match = re.search(r'(.*)_(.*)_ex(\d)_sr(\d)_sc(\d+)', file.name)
+    match = re.search(r'(.*)_(.*)_ex(.+)_sr(\d+)_sc(\d+)', file.name)
     if match:
         return match.groups()
     else:
@@ -92,7 +92,6 @@ def visualize(request):
         if form.is_valid():
             # returns model instance that was created/updated 
             params  = form.save()
-
             match = handle_uploaded_file(request.FILES['file'], form)
             # find file in local directory 
             if match is not None:
@@ -108,7 +107,7 @@ def visualize(request):
  
             else:
                 context["error_message"] = "Error: could not parse file. Make sure the file name is of the form \
-                                            <dataset>_<apnea_type>_ex<excerpt>, sr<sample_rate>, sc<scale_factor>"
+                                            <dataset>_<apnea_type>_ex<excerpt>_sr<sample_rate>_sc<scale_factor>"
                 return render(request, "apnea_detection/error.html", context=context)
             fd = FlatlineDetection(ROOT_DIR, dataset, apnea_type, excerpt, sample_rate, scale_factor)
             
@@ -120,11 +119,9 @@ def visualize(request):
             context['orig_graph'] = orig_graph
             context['params'] = params
             context['show_flatline_button'] = True
-            upload_file_form = UploadFileForm()
-            flatline_params_form = FlatlineDetectionParamsForm()
 
-            context["upload_file_form"] = upload_file_form
-            context["flatline_params_form"] = flatline_params_form
+            context["upload_file_form"] = UploadFileForm()
+            context["flatline_params_form"] = FlatlineDetectionParamsForm()
             return render(request, "apnea_detection/visualize.html", context=context) 
 
     # else display blank upload form
@@ -143,10 +140,14 @@ def visualize(request):
 def flatline_detection(request):
 
     if request.method == "POST":
-        ft = float(request.POST.get('flatline_thresh'))
-        lt = float(request.POST.get('low_thresh'))
-        ht = float(request.POST.get('high_thresh'))
 
+        if request.POST.get('flatline_thresh'):
+            flatline_params_form = FlatlineDetectionParamsForm(request.POST)
+            ft = float(request.POST.get('flatline_thresh'))
+            lt = float(request.POST.get('low_thresh'))
+            ht = float(request.POST.get('high_thresh'))
+        else:
+            flatline_params_form = FlatlineDetectionParamsForm()
     context = {}
     
     params = UploadFile.objects.latest('id') # or date_updated
@@ -173,8 +174,6 @@ def flatline_detection(request):
     context['num_flatline'] = len(flatline_times)
     context['num_nonflatline'] = len(nonflatline_times)
     context['params'] = params
-
-    flatline_params_form = FlatlineDetectionParamsForm()
     context['flatline_params_form'] = flatline_params_form
 
 
@@ -192,80 +191,19 @@ def train_test(request):
     if request.method == "POST":
 
         if request.POST.get('test'):
-            model = LSTM(ROOT_DIR, params.dataset, params.apnea_type, params.excerpt, 64, 10)
+            model = LSTM(ROOT_DIR, params.dataset, params.apnea_type, params.excerpt, 64, 30)
             test_error = model.test()
             context['message'] = f"Final test error: {test_error}"
             return render(request, "apnea_detection/train_test.html", context=context) 
         else:
-            model = LSTM(ROOT_DIR, params.dataset, params.apnea_type, params.excerpt, 64, 10)
-            saved_model_file, train_loss = model.train()
-            context['message'] = f"Saved model to {saved_model_file}, train loss: {train_loss}"
+            model = LSTM(ROOT_DIR, params.dataset, params.apnea_type, params.excerpt, 64, 30)
+            train_loss, test_error = model.train(save_model=False)
+            context['message'] = f"Train loss: {train_loss}, Test error: {test_error}"
             return render(request, "apnea_detection/train_test.html", context=context) 
 
     else:
         return render(request, "apnea_detection/train_test.html", context=context) 
  
-
-    
-
-#####################################################################
-#                     Normalization
-####################################################################
-''' Normalizes a file specified by user '''
-def normalize(form):
-    # cleaned form 
-    excerpt             = form["excerpt"]
-    dataset             = form["dataset"]
-    apnea_type          = form["apnea_type"]
-    sample_rate         = form["sample_rate"]
-    norm                = form["norm"]
-    slope_threshold     = form["slope_threshold"]
-    scale_factor_low    = form["scale_factor_low"]
-    scale_factor_high   = form["scale_factor_high"]
-
-    # read unnormalized file
-    unnormalized_file = f"{DATA_DIR}/{dataset}/preprocessing/excerpt{excerpt}/filtered_{sample_rate}hz.txt"
-    df = pd.read_csv(unnormalized_file, delimiter=',')
-
-    # sample every nth row 
-    # df = df.iloc[::100, :]
-
-    # calculate slope of signal
-    reg = linear_model.LinearRegression()
-    reg.fit(df["Time"].values.reshape(-1,1),  df["Value"].values)
-    slope = reg.coef_[0] * 1000  # convert unit
-    print("Slope:", slope)
-    
-    # perform linear scaling 
-    scale_factor = scale_factor_high if slope > slope_threshold else scale_factor_low
-    df["Value"] *= scale_factor
-
-    # write normalized output file
-    normalized_file = unnormalized_file.split('.')[0] + f"_{norm}_{scale_factor}" + ".norm"
-    df.to_csv(normalized_file, index=None, float_format='%.6f')
- 
-    # write new row to log.txt 
-    log_file = f"{INFO_DIR}/log.csv"
-    normalized_file_relpath = os.path.relpath(normalized_file, ROOT_DIR)
-    with open(log_file, 'a', newline='\n') as logs:
-        fieldnames = ['time','DB','patient','samplingRate','action','file_folder_Name','parameters']
-        writer = csv.DictWriter(logs, fieldnames=fieldnames)
-        print('Writing row....\n')
-        time_format = '%m/%d/%Y %H:%M %p'
-        writer.writerow({'time': datetime.now().strftime(time_format),
-                        'DB': dataset,
-                        'patient': excerpt,
-                        'samplingRate': sample_rate,
-                        'action': 'DataNormalization',
-                        'file_folder_Name': normalized_file_relpath,
-                        'parameters': f"slope:{slope_threshold}, hFactor:{scale_factor_high}, lFactor:{scale_factor_low}"})
-
-
-    flatline_detection_params = dataset, apnea_type, excerpt, sample_rate, scale_factor 
-    return normalized_file_relpath, flatline_detection_params
-
-
-
 #####################################################################
 #                     Results
 ####################################################################
@@ -273,17 +211,15 @@ def normalize(form):
 @login_required
 def results(request):
     context = {}
-    cols = ["dataset","apnea_type","excerpt","epochs", "batch_size","num_pos_train","num_neg_train",\
-            "f1_1","f1_0","true_pos","true_neg","false_pos","false_neg"]
-
+    fieldnames = ['time','dataset','apnea_type','excerpt','sample_rate','scale_factor', \
+                      'file','test_error','n_train','n_test','epochs']
     # fieldnames = [  'dataset',      'apnea_type',  'excerpt', 'epochs', 'batch_size', 'num_pos_train',    'num_neg_train',\
     #                 'num_pos_test', 'num_neg_test', 'precision_1',  'precision_0',  'recall_1', 'recall_0',  'f1_1', 'f1_0',\
     #                 'true_pos','true_neg','false_pos','false_neg' ]
 
     # render results csv as html
-    results_file = f"{INFO_DIR}/summary_results.csv"
+    results_file = f"{RESULTS_DIR}/results.csv"
     context["results"] = csv_to_html(results_file)
-    context["preds"] = csv_to_html(os.path.join(ROOT_DIR, "sample_out.csv"))
     return render(request, "apnea_detection/results.html", context=context)
 
 #####################################################################

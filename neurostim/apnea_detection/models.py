@@ -8,7 +8,9 @@ DATASETS = [
         ("dreams", "DREAMS Apnea database"),
         ("dublin", "University College of Dublin Database"),
         ("mit", "MIT-BIH Arrhythmia Database"),
-        ("patch", "Neurostim Patch data")
+        ("patchJeff", "Neurostim Patch data: Jeff"),
+        ("patchAllister", "Neurostim Patch data: Allister")
+
 ]
 APNEA_TYPES = [
     ("osa", "Obstructive sleep apnea"),
@@ -24,7 +26,7 @@ class UploadFile(models.Model):
     file = models.FileField()
     dataset = models.CharField(max_length = 20, blank=True)
     apnea_type = models.CharField(max_length = 20, blank=True)
-    excerpt = models.PositiveIntegerField(default=1, blank=True)
+    excerpt = models.CharField(max_length = 20, blank=True)
     sample_rate = models.PositiveIntegerField(default=8, blank=True)  
     scale_factor = models.PositiveIntegerField(default=1, blank=True) 
 

@@ -29,7 +29,7 @@ class FlatlineDetection():
         print('sr', sample_rate)
         self.dataset = dataset
         self.apnea_type  = apnea_type
-        self.excerpt   = int(excerpt)
+        self.excerpt   = excerpt
         self.sample_rate = int(sample_rate)
         self.scale_factor = int(scale_factor)
 
@@ -40,7 +40,7 @@ class FlatlineDetection():
 
         self.base_path = f"{self.data_dir}/{self.dataset}/preprocessing/excerpt{self.excerpt}/{self.dataset}_{self.apnea_type}_ex{self.excerpt}_sr{self.sample_rate}"
         # path to unnormalized, normalized files 
-        self.in_file     = f"{self.base_path}_sc{self.scale_factor}.txt"
+        self.in_file     = f"{self.base_path}_sc{self.scale_factor}.csv"
         # output file with extracted flatline events
         self.out_file = f"{self.base_path}_sc{self.scale_factor}_flatline_events.txt"
         # pos/neg sequence files 
@@ -58,6 +58,8 @@ class FlatlineDetection():
         # df = df.iloc[:10000]
         pd.options.plotting.backend = "plotly"
         fig = df.plot(x='Time', y="Value",  width=1700, height=600)
+        fig.update_traces(line=dict(color="gray", width=0.5))
+
 
         # plot
         return fig
@@ -68,16 +70,16 @@ class FlatlineDetection():
         out_file: file to write to 
     '''
     def output_apnea_files(self, flatline_times, nonflatline_times):
-        with open(self.out_file, 'w', newline='\n') as out:
-            fieldnames = ["OnSet", "Duration", "Notation"]
-            writer = csv.DictWriter(out, fieldnames=fieldnames)
-            writer.writeheader()
+        # with open(self.out_file, 'w', newline='\n') as out:
+        #     fieldnames = ["OnSet", "Duration", "Notation"]
+        #     writer = csv.DictWriter(out, fieldnames=fieldnames)
+        #     writer.writeheader()
 
-            # write each detected flatline event as a row
-            for start_time, end_time in flatline_times:
-                writer.writerow({'OnSet': '%.3f' % start_time,
-                                'Duration': '%.3f' % (end_time - start_time),
-                                'Notation': 'FlatLine'})
+        #     # write each detected flatline event as a row
+        #     for start_time, end_time in flatline_times:
+        #         writer.writerow({'OnSet': '%.3f' % start_time,
+        #                         'Duration': '%.3f' % (end_time - start_time),
+        #                         'Notation': 'FlatLine'})
 
         # initialize directories 
         init_dir(self.sequence_dir)
@@ -208,13 +210,15 @@ class FlatlineDetection():
         pd.options.plotting.backend = "plotly"
     
         flatline_fig = px.line(df, x="Time", y="Value", title='Extracted flatline events (red)')
+        flatline_fig.update_traces(line=dict(color="gray", width=0.5))
+
         for ft in flatline_times:
             flatline_fig.add_trace(
                 go.Scatter(
                     x=ft,
                     y=[flatline_value, flatline_value],
                     mode="lines",
-                    line=go.scatter.Line(color="red", width=5),
+                    line=go.scatter.Line(color="red", width=8),
                     showlegend=True
                 )
             )
@@ -226,13 +230,14 @@ class FlatlineDetection():
 
         ''' -----------------Plot detected nonflatline events--------------------'''
         nonflatline_fig = px.line(df, x="Time", y="Value", title='Extracted nonflatline events (green)')
+        nonflatline_fig.update_traces(line=dict(color="gray", width=0.5))
         for nft in nonflatline_times:
             nonflatline_fig.add_trace(
                 go.Scatter(
                     x=nft,
                     y=[flatline_value, flatline_value],
                     mode="lines",
-                    line=go.scatter.Line(color="green", width=5),
+                    line=go.scatter.Line(color="green", width=8),
                     showlegend=True
                 )
             )
