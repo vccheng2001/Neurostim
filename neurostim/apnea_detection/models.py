@@ -2,12 +2,15 @@ from django.db import models
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.forms.fields import IntegerField
-
+from decimal import Decimal
 
 DATASETS = [
         ("dreams", "DREAMS Apnea database"),
         ("dublin", "University College of Dublin Database"),
-        ("mit", "MIT-BIH Arrhythmia Database")
+        ("mit", "MIT-BIH Arrhythmia Database"),
+        ("patchJeff", "Neurostim Patch data: Jeff"),
+        ("patchAllister", "Neurostim Patch data: Allister")
+
 ]
 APNEA_TYPES = [
     ("osa", "Obstructive sleep apnea"),
@@ -17,28 +20,17 @@ NORMALIZATION_TYPES = [
         ("linear", "linear scaling"),
         ("nonlinear", "nonlinear scaling")
 ]
-# Create your models here.
-# User profile 
-class Setup(models.Model):  
-    dataset = models.CharField(max_length = 20,
-                                choices = DATASETS,
-                                default = "DREAMS")
-    apnea_type = models.CharField(max_length = 20,
-                                choices = APNEA_TYPES,
-                                default = "OSA")
-    excerpt = models.PositiveIntegerField(default=1)
-    norm = models.CharField(max_length = 20,
-                                choices = NORMALIZATION_TYPES,
-                                default = "Linear") 
-    slope_threshold= models.FloatField(default=0.025)
-    scale_factor_low = models.PositiveIntegerField(default=1)
-    scale_factor_high = models.PositiveIntegerField(default=100) 
-    sample_rate = models.PositiveIntegerField(default=8)  
 
 
-# Model hyperparameters
-class ModelHyperParams(models.Model):  
-    batch_size = models.PositiveIntegerField(default=32)
-    epochs = models.PositiveIntegerField(default=10)
-    positive_threshold = models.FloatField(default=0.7)
+class UploadFile(models.Model):
+    file = models.FileField()
+    dataset = models.CharField(max_length = 20, blank=True)
+    apnea_type = models.CharField(max_length = 20, blank=True)
+    excerpt = models.CharField(max_length = 20, blank=True)
+    sample_rate = models.PositiveIntegerField(default=8, blank=True)  
+    scale_factor = models.PositiveIntegerField(default=1, blank=True) 
 
+class FlatlineDetectionParams(models.Model):
+    flatline_thresh = models.FloatField(default=10, blank=True)
+    low_thresh = models.DecimalField(max_digits=3, decimal_places=2, blank=True, default=0.1)
+    high_thresh = models.DecimalField(max_digits=3, decimal_places=2, blank=True, default=0.5) 
