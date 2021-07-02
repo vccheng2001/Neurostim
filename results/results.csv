@@ -1,0 +1,3 @@
+time,dataset,apnea_type,excerpt,file,test_acc,n_train,n_test,epochs
+07/02/2021 17:04 PM,patchAllisterW,osa,6,results/results.csv,0.7255806028842926,441,189,30,(15/0.1/0.3)
+07/02/2021 17:16 PM,patchAllisterW,osa,8,results/results.csv,0.9327139630913734,385,165,30,(3/0.05/0.3), cannot get negative sequences thus class imbalance 

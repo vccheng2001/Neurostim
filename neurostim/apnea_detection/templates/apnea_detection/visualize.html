@@ -1,0 +1,59 @@
+{% extends "apnea_detection/base.html" %}
+
+
+{% block heading %}
+<div class="jumbotron text-center">
+    <h1 class="display-4">Visualize raw data</h1>
+</div>
+{% endblock %}
+
+
+{% block body %}
+
+
+<!---- Upload file -->
+{% if upload_file_form %}
+<div class="container">
+	<h2> Upload a new file to visualize </h2>
+	<hr>
+	<form action="." method="post" enctype="multipart/form-data"> 
+		{% csrf_token %}    
+		{{ upload_file_form }}
+		<button type="submit" class="btn btn-secondary btn-lg">Upload new file</button>
+	</form>
+</div>
+{% endif %}
+
+<!-- Original graph -->
+{% if orig_graph %}
+<hr>
+
+<div class="container">
+<h2> Visualization </h2>
+<ul>
+	<li>Dataset: {{params.dataset}}</li>
+	<li>Excerpt: {{params.excerpt}}</li>
+	<li>Sample rate: {{params.sample_rate}}</li>
+	<li>Scale factor: {{params.scale_factor}}</li>
+</ul>
+</div>
+{{ orig_graph|safe }}
+
+{% endif %}
+
+<!---- Button to run flatline detection -->
+
+{% if show_flatline_button %}
+<div class="container">
+	<br>
+	<h2> Flatline Detection Algorithm </h2>
+	<hr>
+	<form action="{% url 'flatline_detection' %}" method="post"> 
+		{% csrf_token %}    
+		{{ flatline_params_form }}
+		<button type="submit" class="btn btn-secondary btn-lg">Run flatline detection</button>
+	</form>
+</div>
+{% endif %}
+
+{% endblock %}

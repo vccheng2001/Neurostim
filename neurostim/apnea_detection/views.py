@@ -12,266 +12,213 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 
 # forms 
-from apnea_detection.forms import LoginForm, RegisterForm, SetupForm, ModelHyperParamsForm
-from apnea_detection.models import Setup, ModelHyperParams
+from apnea_detection.forms import LoginForm, RegisterForm, UploadFileForm, FlatlineDetectionParamsForm
+from apnea_detection.models import UploadFile, FlatlineDetectionParams
+import sys
+import os
+import glob
+import json
+from json import JSONEncoder
+sys.path.append(os.path.abspath(os.path.join('../')))
+print(f'Added {sys.path[-1]} to path')
+from flatline_detection import FlatlineDetection
+from lstm import LSTM
 
+
+import pickle 
 import pandas as pd
 import os
 import csv
 from datetime import date, datetime
-from subprocess import Popen, PIPE, STDOUT
+from subprocess import Popen, PIPE, STDOUT, CalledProcessError
 from sklearn import linear_model 
 from pathlib import Path
-
+import re 
+# plot
+import plotly
+from plotly.offline import plot
+from plotly.graph_objs import Scatter
 # disable debugging info
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 
-# directories 
+# root directory is 
 ROOT_DIR = Path(__file__).parents[2]
+print("ROOT", ROOT_DIR)
 DATA_DIR = os.path.join(ROOT_DIR, "data")
 INFO_DIR = os.path.join(ROOT_DIR, "info")
 MODEL_DIR = os.path.join(ROOT_DIR, "saved_models")
+RESULTS_DIR = os.path.join(ROOT_DIR, "results")
+import matplotlib
+matplotlib.use('agg')
+
+
 
 ''' helper function to convert csv to html '''
 def csv_to_html(file):
-    df = pd.read_csv(file)
+    df = pd.read_csv(file, header=None)
     html = df.to_html(classes='table table-striped table-bordered table-responsive table-sm')
     return html
 
 
+#####################################################################
+#                     Home page
+####################################################################
 @login_required
 def home(request):
+    
     context = {}
     return render(request, "apnea_detection/home.html", context=context)
 
-@login_required
-def setup(request):
-    context = {}
-    logs_file = f"{INFO_DIR}/log.csv"
-    if request.method == "POST":
-        form = SetupForm(request.POST)
-        if form.is_valid():
-            try:
-                # normalize file and save form
-                normalized_file, flatline_detection_params = normalize(form.cleaned_data)
-                run_flatline_detection(flatline_detection_params)
-                form.save()
-                # display success message
-                context["message"] = f"Successfully saved normalized file to {normalized_file}."
-                # return new form 
-                context['form'] =  SetupForm()
-                # logs file
-                context['logs'] = csv_to_html(logs_file)
-                return render(request, "apnea_detection/setup.html", context=context)
-            except Exception as error_message:
-                # else throw error 
-                context["error_heading"] = "Error during normalization step. Please try again."
-                context["error_message"] = error_message
-                return render(request, "apnea_detection/error.html", context=context)
-    # if GET request
-    context = {'form': SetupForm(), 'logs': csv_to_html(logs_file)} 
-    return render(request, "apnea_detection/setup.html", context=context)
-
-''' Normalizes a file specified by user '''
-def normalize(form):
-    # cleaned form 
-    excerpt             = form["excerpt"]
-    dataset             = form["dataset"]
-    apnea_type          = form["apnea_type"]
-    sample_rate         = form["sample_rate"]
-    norm                = form["norm"]
-    slope_threshold     = form["slope_threshold"]
-    scale_factor_low    = form["scale_factor_low"]
-    scale_factor_high   = form["scale_factor_high"]
-
-    # read unnormalized file
-    unnormalized_file = f"{DATA_DIR}/{dataset}/preprocessing/excerpt{excerpt}/filtered_{sample_rate}hz.txt"
-    df = pd.read_csv(unnormalized_file, delimiter=',')
-
-    # sample every nth row 
-    # df = df.iloc[::100, :]
-
-    # calculate slope of signal
-    reg = linear_model.LinearRegression()
-    reg.fit(df["Time"].values.reshape(-1,1),  df["Value"].values)
-    slope = reg.coef_[0] * 1000  # convert unit
-    print("Slope:", slope)
-    
-    # perform linear scaling 
-    scale_factor = scale_factor_high if slope > slope_threshold else scale_factor_low
-    df["Value"] *= scale_factor
-
-    # write normalized output file
-    normalized_file = unnormalized_file.split('.')[0] + f"_{norm}_{scale_factor}" + ".norm"
-    df.to_csv(normalized_file, index=None, float_format='%.6f')
- 
-    # write new row to log.txt 
-    log_file = f"{INFO_DIR}/log.csv"
-    normalized_file_relpath = os.path.relpath(normalized_file, ROOT_DIR)
-    with open(log_file, 'a', newline='\n') as logs:
-        fieldnames = ['time','DB','patient','samplingRate','action','status','file_folder_Name','parameters']
-        writer = csv.DictWriter(logs, fieldnames=fieldnames)
-        print('Writing row....\n')
-        time_format = '%m/%d/%Y %H:%M %p'
-        writer.writerow({'time': datetime.now().strftime(time_format),
-                        'DB': dataset,
-                        'patient': excerpt,
-                        'samplingRate': sample_rate,
-                        'action': 'DataNormalization',
-                        'file_folder_Name': normalized_file_relpath,
-                        'parameters': f"slope:{slope_threshold}, hFactor:{scale_factor_high}, lFactor:{scale_factor_low}"})
-
-
-    flatline_detection_params = dataset, apnea_type, excerpt, sample_rate, scale_factor 
-    return normalized_file_relpath, flatline_detection_params
-
-
-def run_flatline_detection(flatline_detection_params):
-    dataset, apnea_type, excerpt, sample_rate, scale_factor = flatline_detection_params
-   
-
-    cmd = ["python", "flatline_detection.py", 
-            "-d",  str(dataset), 
-            "-a",  str(apnea_type),
-            "-ex", str(excerpt),
-            "-sr", str(sample_rate),
-            "-sc", str(scale_factor)]
-
-
-    proc = Popen(cmd, universal_newlines=True, 
-                      stdout=PIPE, stderr=PIPE)
-
-    stdout, stderr = proc.communicate()
-    return proc.returncode, stdout, stderr
-
-@login_required
-def inference(request):
-
-    context = {}
-    results_file = f"{INFO_DIR}/summary_results.csv"
-
-    # most recent setup parameters
-    setup_params = Setup.objects.last()
-
-
-    try:
-        returncode, stdout, stderr = run(setup_params, None, test=True)
-        results = get_summary_results(results_file)
-        # save model hyperparameters
-        # display success message
-        context["message"] = f"Successfully performed inference."
-        context["results"] = results
-        context["setup_params"] = setup_params
-        return render(request, "apnea_detection/inference.html", context=context)
-            
-            
-    except Exception as error_message:
-        # else throw error 
-        context["error_heading"] = "Error during inference step. Please try again."
-        context["error_message"] = error_message
-        return render(request, "apnea_detection/error.html", context=context)
-    return render(request, "apnea_detection/inference.html", context=context)
-
-
-
-''' Retrieves results of latest run '''
-def get_summary_results(results_file):
-    result = pd.read_csv(results_file, index_col=None, squeeze=True)
-    result = result.iloc[:,-8:].tail(1)
-    results_dict = result.to_dict('r')[0]
-    return results_dict
-
-
-
-
-''' train/testmodel using specified model hyperparameters '''
-def run(setup_params, model_params, test):
-
-
-    apnea_type = setup_params.apnea_type
-    dataset = setup_params.dataset
-    excerpt = setup_params.excerpt
-    if model_params:
-        epochs = model_params["epochs"]
-        batch_size = model_params["batch_size"]
-        threshold = model_params["positive_threshold"]
-    # run apnea detection script
-
-    if test:
-        cmd = ["python", "train.py", 
-               "-d", dataset, 
-               "-a", apnea_type,
-               "-ex", str(excerpt),
-               "-t", "120",
-               "-th", str(0.7),
-               "--test"]
+def handle_uploaded_file(file, form):
+    match = re.search(r'(.*)_(.*)_ex(.+)_sr(\d+)_sc(\d+)', file.name)
+    if match:
+        return match.groups()
     else:
-        cmd = ["python", "train.py", \
-                        "-d", dataset,
-                        "-a", apnea_type,
-                        "-ex", str(excerpt),
-                        "-t", "120",
-                        "-ep", str(epochs),
-                        "-b", str(batch_size)]
-
-    proc = Popen(cmd, universal_newlines=True, 
-                      stdout=PIPE, stderr=PIPE)
-
-    stdout, stderr = proc.communicate()
-    print('stdout of run', stdout, stderr)
-    return proc.returncode, stdout, stderr 
+        return None
 
 
-
+#####################################################################
+#                    Visualize uploaded file
+####################################################################
 @login_required
-def train(request):
+def visualize(request):
     context = {}
-    results_file = f"{INFO_DIR}/summary_results.csv"
 
-    # most recent setup parameters
-    # choose from setup params 
-    setup_params = Setup.objects.last()
+    # if user submitted file 
+    if request.method == 'POST':
+        print('-----Generating visualization------')
+        # Visualize uploaded file 
+        form = UploadFileForm(request.POST, request.FILES)
+        if form.is_valid():
+            # returns model instance that was created/updated 
+            params  = form.save()
+            match = handle_uploaded_file(request.FILES['file'], form)
+            # find file in local directory 
+            if match is not None:
+                dataset, apnea_type, excerpt, sample_rate, scale_factor = match 
+
+                # update parameters 
+                params.dataset = dataset
+                params.apnea_type = apnea_type
+                params.excerpt = excerpt
+                params.sample_rate = sample_rate
+                params.scale_factor = scale_factor
+                params.save()
+ 
+            else:
+                context["error_message"] = "Error: could not parse file. Make sure the file name is of the form \
+                                            <dataset>_<apnea_type>_ex<excerpt>_sr<sample_rate>_sc<scale_factor>"
+                return render(request, "apnea_detection/error.html", context=context)
+            fd = FlatlineDetection(ROOT_DIR, dataset, apnea_type, excerpt, sample_rate, scale_factor)
+            
+            # visualize 
+            fig = fd.visualize()
+
+            # display original graph 
+            orig_graph = fig.to_html(full_html=False, default_height=500, default_width=700)
+            context['orig_graph'] = orig_graph
+            context['params'] = params
+            context['show_flatline_button'] = True
+
+            context["upload_file_form"] = UploadFileForm()
+            context["flatline_params_form"] = FlatlineDetectionParamsForm()
+            return render(request, "apnea_detection/visualize.html", context=context) 
+
+    # else display blank upload form
+    else:
+        upload_file_form= UploadFileForm()
+        context["upload_file_form"] = upload_file_form
+
+    return render(request, "apnea_detection/visualize.html", context=context) 
+
+
+
+#####################################################################
+#                     Flatline Detection
+####################################################################
+
+def flatline_detection(request):
 
     if request.method == "POST":
-        form = ModelHyperParamsForm(request.POST)
-        if form.is_valid():
-            try:
-                model_params = form.cleaned_data
-                returncode, stdout, stderr = run(setup_params, model_params, False)
 
-                saved_model_path = stdout
-                # display success message
-                context["message"] = f"Successfully saved trained model to {saved_model_path}"
-                context["setup_params"] = setup_params
-                context["model_params"] = model_params
-              
-                return render(request, "apnea_detection/inference.html", context=context)
-            
-            
-            except Exception as error_message:
-                # else throw error 
-                context["error_heading"] = "Error during training. Please try again."
-                context["error_message"] = error_message
-                return render(request, "apnea_detection/error.html", context=context)
-    # if GET request
-    context = {'form': ModelHyperParamsForm()}
-    return render(request, "apnea_detection/train.html", context=context)
+        if request.POST.get('flatline_thresh'):
+            flatline_params_form = FlatlineDetectionParamsForm(request.POST)
+            ft = float(request.POST.get('flatline_thresh'))
+            lt = float(request.POST.get('low_thresh'))
+            ht = float(request.POST.get('high_thresh'))
+        else:
+            flatline_params_form = FlatlineDetectionParamsForm()
+    context = {}
+    
+    params = UploadFile.objects.latest('id') # or date_updated
+
+    # if no file found
+    if not params:
+        context["error_message"] = "No file to run flatline detection on. Please return to previous step."
+        return render(request, "apnea_detection/error.html", context=context) 
+    
+    # flatline detection 
+    fd = FlatlineDetection(ROOT_DIR, params.dataset, params.apnea_type, \
+        params.excerpt, params.sample_rate, params.scale_factor)
+
+    print('------Running flatline detection-------')
+    flatline_fig, flatline_times, nonflatline_fig, nonflatline_times = fd.annotate_events(ft, lt, ht)
+    flatline_fig = flatline_fig.to_html(full_html=False)
+    nonflatline_fig = nonflatline_fig.to_html(full_html=False)
+
+    fd.output_apnea_files(flatline_times, nonflatline_times)
+
+    # save as context
+    context['flatline_fig'] = flatline_fig
+    context['nonflatline_fig'] = nonflatline_fig
+    context['num_flatline'] = len(flatline_times)
+    context['num_nonflatline'] = len(nonflatline_times)
+    context['params'] = params
+    context['flatline_params_form'] = flatline_params_form
+
+
+    return render(request, "apnea_detection/flatline_detection.html", context=context) 
 
 
 
+#####################################################################
+#                     Train/test
+####################################################################
+def train_test(request):
+    context = {}
+    params = UploadFile.objects.latest('id') 
+    # 
+    if request.method == "POST":
+
+        if request.POST.get('test'):
+            model = LSTM(ROOT_DIR, params.dataset, params.apnea_type, params.excerpt, 64, 30)
+            test_error = model.test()
+            context['message'] = f"Final test error: {test_error}"
+            return render(request, "apnea_detection/train_test.html", context=context) 
+        else:
+            model = LSTM(ROOT_DIR, params.dataset, params.apnea_type, params.excerpt, 64, 30)
+            train_loss, test_error = model.train(save_model=False)
+            context['message'] = f"Train loss: {train_loss}, Test error: {test_error}"
+            return render(request, "apnea_detection/train_test.html", context=context) 
+
+    else:
+        return render(request, "apnea_detection/train_test.html", context=context) 
+ 
+#####################################################################
+#                     Results
+####################################################################
 
 @login_required
 def results(request):
     context = {}
-    cols = ["dataset","apnea_type","excerpt","epochs", "batch_size","num_pos_train","num_neg_train",\
-            "f1_1","f1_0","true_pos","true_neg","false_pos","false_neg"]
-
+    fieldnames = ['time','dataset','apnea_type','excerpt','sample_rate','scale_factor', \
+                      'file','test_error','n_train','n_test','epochs']
     # fieldnames = [  'dataset',      'apnea_type',  'excerpt', 'epochs', 'batch_size', 'num_pos_train',    'num_neg_train',\
     #                 'num_pos_test', 'num_neg_test', 'precision_1',  'precision_0',  'recall_1', 'recall_0',  'f1_1', 'f1_0',\
     #                 'true_pos','true_neg','false_pos','false_neg' ]
 
     # render results csv as html
-    results_file = f"{INFO_DIR}/summary_results.csv"
+    results_file = f"{RESULTS_DIR}/results.csv"
     context["results"] = csv_to_html(results_file)
     return render(request, "apnea_detection/results.html", context=context)
 

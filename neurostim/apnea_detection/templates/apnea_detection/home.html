@@ -3,36 +3,44 @@
 
 {% block heading %}
 <div class="jumbotron text-center">
-    <h1 class="display-4">Apnea Detection Pipeline</h1>
+    <h1 class="display-4">Sleep Apnea Detection Pipeline</h1>
 </div>
-{% endblock %}
-
-{% block tabs %}
 {% endblock %}
 
 
 
 {% block body %}
 <div class="container">
-<p>
-  This is a pipeline to detect and predict apnea events (either OSA or OSAHS) 
+  <!----Description-->
+  <h5>
+  This is an end-to-end pipeline to detect and predict OSA apnea events 
   using a Long-Short Term Memory (LSTM) neural network.  
-  The model is trained on positive/negative sequences of breathing data, sampled
-  at 8 hz (8 samples/second). Currently, the three datasets supported are the 
-  DREAMS, MIT-BIH, and University of Dublin database.  
-</p>
-<h4>Steps to run apnea detection pipline</h4>
-<ol>
-  <li>Select excerpt, dataset, apnea type, normalization parameters </li>
-  <li>Run machine learning model  </li>
-</ol>
+  The model is trained on positive/negative sequences of breathing data.
+  </h5>
+  <br>
 
-<br><br>
-<div class="center">
-  <a class="btn btn-primary" href="{% url 'setup' %}" role="button">Begin Apnea Detection Pipeline</a>
-</div>
-</div>
+  <!----Datasets-->
+  <h4>Datasets supported</h4>
+  <ul>
+    <li>DREAMS 
+    <li>MIT-BIH
+    <li>UCDDB
+  </ul>
+  </p>
 
+  <!----Run apnea detection pipeline-->
+  <h4>Steps to run apnea detection pipline</h4>
+  <ol>
+    <li>Select excerpt, dataset, apnea type, normalization parameters </li>
+    <li>Run machine learning model  </li>
+  </ol>
+
+  {% autoescape off %}
+  {{ plot_div }}
+  {% endautoescape %}
+
+  <a class="btn btn-dark btn-lg" href="{% url 'visualize' %}" role="button">Begin Apnea Detection Pipeline</a>
+</div>
 
 
 {% endblock %}
