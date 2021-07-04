@@ -24,9 +24,6 @@ class FlatlineDetection():
 
     def __init__(self, root_dir, dataset, apnea_type, excerpt, sample_rate, scale_factor):
 
-        print('in init......')
-        print('dataset', dataset)
-        print('sr', sample_rate)
         self.dataset = dataset
         self.apnea_type  = apnea_type
         self.excerpt   = excerpt
@@ -70,16 +67,16 @@ class FlatlineDetection():
         out_file: file to write to 
     '''
     def output_apnea_files(self, flatline_times, nonflatline_times):
-        # with open(self.out_file, 'w', newline='\n') as out:
-        #     fieldnames = ["OnSet", "Duration", "Notation"]
-        #     writer = csv.DictWriter(out, fieldnames=fieldnames)
-        #     writer.writeheader()
+        with open(self.out_file, 'w', newline='\n') as out:
+            fieldnames = ["OnSet", "Duration", "Notation"]
+            writer = csv.DictWriter(out, fieldnames=fieldnames)
+            writer.writeheader()
 
-        #     # write each detected flatline event as a row
-        #     for start_time, end_time in flatline_times:
-        #         writer.writerow({'OnSet': '%.3f' % start_time,
-        #                         'Duration': '%.3f' % (end_time - start_time),
-        #                         'Notation': 'FlatLine'})
+            # write each detected flatline event as a row
+            for start_time, end_time in flatline_times:
+                writer.writerow({'OnSet': '%.3f' % start_time,
+                                'Duration': '%.3f' % (end_time - start_time),
+                                'Notation': 'FlatLine'})
 
         # initialize directories 
         init_dir(self.sequence_dir)
@@ -142,7 +139,7 @@ class FlatlineDetection():
 
         
         # difference of values 1 sec apart (thus SAMPLE_RATE timesteps)
-        df['Diff'] = df['Value'].diff(self.sample_rate)
+        df['Diff'] = df['Value'].diff(self.sample_rate * 0.5)
         # set to 0 if < THRESHOLD, else 1
         df['Binary_Diff'] = np.where(abs(df['Diff']) >= (flatline_threshold * self.scale_factor), 1, 0)
         # convert to binary list 
@@ -248,8 +245,8 @@ class FlatlineDetection():
                 height=600,)
 
 
-        # print(f"Extracted {len(flatline_times)} flatline events")
-        # print(f"Extracted {len(nonflatline_times)} flatline events")
+        print(f"Extracted {len(flatline_times)} flatline events")
+        print(f"Extracted {len(nonflatline_times)} flatline events")
 
         
         self.flatline_times = flatline_times
@@ -263,33 +260,22 @@ def init_dir(path):
     if not os.path.isdir(path):
         os.mkdir(path)
 
-# if __name__ == "__main__":
-#     parser = argparse.ArgumentParser()
-#     parser.add_argument("-d", "--dataset",    default="dreams", help="dataset (dreams, dublin, or mit)")
-#     parser.add_argument("-a", "--apnea_type", default="osa",    help="type of apnea (osa, osahs, or all)")
-#     parser.add_argument("-ex","--excerpt",    default=1,        help="excerpt number to use")
-#     parser.add_argument("-sr","--sample_rate",    default=10,        help="number of samples per second")
-#     parser.add_argument("-sc","--scale_factor",    default=10,        help="scale factor for normalization")
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-d", "--dataset",    default="dreams", help="dataset (dreams, dublin, or mit)")
+    parser.add_argument("-a", "--apnea_type", default="osa",    help="type of apnea (osa, osahs, or all)")
+    parser.add_argument("-ex","--excerpt",    default=1,        help="excerpt number to use")
+    parser.add_argument("-sr","--sample_rate",    default=10,        help="number of samples per second")
+    parser.add_argument("-sc","--scale_factor",    default=10,        help="scale factor for normalization")
 
-#     # parse args 
-#     args = parser.parse_args()
+    # parse args 
+    args = parser.parse_args()
 
-#     # store args 
-#     DATASET   = args.dataset
-#     APNEA_TYPE  = args.apnea_type
-#     EXCERPT   = int(args.excerpt)
-#     SAMPLE_RATE = int(args.sample_rate)
-#     SCALE_FACTOR = int(args.scale_factor)
+    fd = FlatlineDetection(".", args.dataset, args.apnea_type, args.excerpt, args.sample_rate, args.scale_factor)
 
-#     base_path = f"{DATA_DIR}/{DATASET}/preprocessing/excerpt{EXCERPT}/filtered_{SAMPLE_RATE}hz" 
+    fig = fd.visualize()
+    flatline_fig, flatline_times, nonflatline_fig, nonflatline_times = fd.annotate_events(10, 0.1, 0.4)
 
-#     # path to unnormalized, normalized files 
-#     file = base_path + f"_linear_{SCALE_FACTOR}.norm"
+    flatline_fig.show()
+    nonflatline_fig.show()
 
-#     # output file with extracted flatline events
-#     out_file = base_path + f"_linear_{SCALE_FACTOR}_flatline_events.norm"
-
-#     # pos/neg sequence files 
-#     sequence_dir = f"{DATA_DIR}/{DATASET}/postprocessing/excerpt{EXCERPT}/"
-
-#     main()

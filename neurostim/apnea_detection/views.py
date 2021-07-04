@@ -191,14 +191,14 @@ def train_test(request):
     if request.method == "POST":
 
         if request.POST.get('test'):
-            model = LSTM(ROOT_DIR, params.dataset, params.apnea_type, params.excerpt, 64, 30)
+            model = LSTM(ROOT_DIR, params.dataset, params.apnea_type, params.excerpt, 30, 64)
             test_error = model.test()
             context['message'] = f"Final test error: {test_error}"
             return render(request, "apnea_detection/train_test.html", context=context) 
         else:
-            model = LSTM(ROOT_DIR, params.dataset, params.apnea_type, params.excerpt, 64, 30)
-            train_loss, test_error = model.train(save_model=False)
-            context['message'] = f"Train loss: {train_loss}, Test error: {test_error}"
+            model = LSTM(ROOT_DIR, params.dataset, params.apnea_type, params.excerpt, 30, 64)
+            training_losses, training_errors, test_error = model.train(save_model=False)
+            context['message'] = f"Test error: {test_error}"
             return render(request, "apnea_detection/train_test.html", context=context) 
 
     else:

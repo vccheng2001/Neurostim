@@ -60,7 +60,12 @@ class LSTM_Module(nn.Module):
 
     
 class LSTM:
-    def __init__(self, root_dir, dataset, apnea_type, excerpt, batch_size, epochs):
+    def __init__(self, root_dir=".",
+                       dataset="dreams",
+                       apnea_type="osa",
+                       excerpt=1, 
+                       batch_size=16, 
+                       epochs=10):
         # hyper-parameters
         self.init_lr = 0.01
         self.decay_factor = 0.7
@@ -97,8 +102,8 @@ class LSTM:
         # Model 
         n_timesteps = self.data.dataset.timesteps 
         n_outputs = 2
-        n_layers = 3
-        n_hidden = 64
+        n_layers = 6
+        n_hidden = 32
         self.model = LSTM_Module(1,n_hidden,n_layers,n_timesteps,n_outputs).double()
         self.model.to(self.device)
 
@@ -115,10 +120,10 @@ class LSTM:
             os.makedirs(self.save_base_path)
         self.save_model_path = self.save_base_path + ".ckpt"
 
-    def train(self, save_model=False):
+    def train(self, save_model=False, plot_loss=False):
         self.model.train()
-        training_losses = []
-        training_errors = []
+        self.training_losses = []
+        self.training_errors = []
         for epoch in range(self.epochs):
             print(f"epoch #{epoch}")
             train_loss = 0.0
@@ -152,22 +157,22 @@ class LSTM:
 
             # writer.flush()
             # append training loss for each epoch 
-            training_losses.append(train_loss/n_batch) 
-            training_errors.append(train_errors/n_batch)      
+            self.training_losses.append(train_loss/n_batch) 
+            self.training_errors.append(train_errors/n_batch)      
             print(f"Loss for epoch {epoch}: {train_loss/n_batch}")
         
 
-        self.train_loss = train_loss # last train loss
         # Visualize loss history
-        plt.plot(range(self.epochs), training_losses, 'r--')
-        plt.plot(range(self.epochs), training_errors, 'b-')
+        if plot_loss:
+            plt.plot(range(self.epochs), self.training_losses, 'r--')
+            plt.plot(range(self.epochs), self.training_errors, 'b-')
 
-        plt.legend(['Training Loss', 'Training error'])
-        plt.xlabel('Epoch')
-        plt.ylabel('Metric')
-        # save model
-        plt.savefig(self.save_base_path + ".png")
-        plt.show()
+            plt.legend(['Training Loss', 'Training error'])
+            plt.xlabel('Epoch')
+            plt.ylabel('Metric')
+            # save model
+            plt.savefig(self.save_base_path + ".png")
+            plt.show()
 
         if save_model:
             print("Saving to... ", self.save_model_path)
@@ -233,7 +238,7 @@ class LSTM:
                             'n_test': self.num_test,
                             'epochs': self.epochs})
 
-        return self.train_loss, self.avg_test_error
+        return self.training_losses, self.training_errors, self.avg_test_error
 
 
 # l = LSTM('dreams','osa',1,64, 10)
