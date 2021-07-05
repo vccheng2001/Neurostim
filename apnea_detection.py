@@ -1,21 +1,19 @@
 import argparse
-from flatline_detection import FlatlineDetection
-from lstm import LSTM 
+from onset_detection import OnsetDetection
+from train import Model
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
-
 import plotly
 from plotly.subplots import make_subplots
 
 '''
-Program to run end-to-end flatline detection (non-GUI)
-To view args: python3 end2end.py -h 
-Example command: python3 end2end.py -d dreams -a osa -ex 1 -sr 8 -sc 1 -f -b 64 -ep 10
+Program to run end-to-end onset detection (non-GUI)
+To view args: python3 apnea_detection.py -h 
+Example command: python3 apnea_detection.py -d dreams -a osa -ex 1 -sr 8 -sc 1 -b 64 -ep 10
 '''
-
 def main(args):
-
+    
     print('********************************')
     print(f'****  Dataset: {args.dataset}  ****')
     print(f'****  Apnea type: {args.apnea_type}  ****')
@@ -24,11 +22,8 @@ def main(args):
     print(f'****  Scale factor: {args.scale_factor}  ****')
     print('*********************************')
 
-
-
-
     # visualize original data
-    fd = FlatlineDetection(root_dir=".",
+    od = OnsetDetection(root_dir=".",
                            dataset=args.dataset,
                            apnea_type=args.apnea_type,
                            excerpt= args.excerpt,
@@ -37,49 +32,39 @@ def main(args):
 
     print('----------------Visualize original signal--------------------')
 
-    fig = fd.visualize()
-    print('----------------Flatline Detection---------------------')
+    fig = od.visualize()
+    print('----------------Plot detected onset, nononset events ------------------')
 
-    # extract flatline events
-    
-    flatline_fig, flatline_times, nonflatline_fig, nonflatline_times = fd.annotate_events(15, 0.1, 0.95)
+    thresh = 0.3
+    onset_fig, onset_times, nononset_fig, nononset_times = od.annotate_events(thresh)
     fig = make_subplots(rows=2, cols=1)
 
-    for i in range(len(flatline_fig['data'])):
-        fig.add_trace(flatline_fig['data'][i], row=1, col=1)
-    for i in range(len(nonflatline_fig['data'])):
-        fig.add_trace(nonflatline_fig['data'][i], row=2, col=1)
+    for i in range(len(onset_fig['data'])):
+        fig.add_trace(onset_fig['data'][i], row=1, col=1)
+    for i in range(len(nononset_fig['data'])):
+        fig.add_trace(nononset_fig['data'][i], row=2, col=1)
 
     fig.show()
 
     if args.full:
-        print('----------------Output flatline events--------------------')
+        print('----------------Output onset events--------------------')
 
-        fd.output_apnea_files(flatline_times, nonflatline_times)
+        od.output_apnea_files(onset_times, nononset_times)
 
         print('----------------Train and test -------------------')
 
-        model = LSTM(root_dir=args.root_dir, 
+        config = None
+        model = Model(root_dir=args.root_dir, 
                      dataset=args.dataset,
                      apnea_type=args.apnea_type,
                      excerpt=args.excerpt,
                      batch_size=int(args.batch_size),
-                     epochs=int(args.epochs))
+                     epochs=int(args.epochs),
+                     config=config)
 
         training_losses, training_errors, test_error = model.train(save_model=False,
-                                                                   plot_loss=False)
+                                                                   plot_loss=True)
 
-        print(f'--------------Final test accuracy: {1-test_error}----------------')
-        plt.plot(range(int(args.epochs)), training_losses, 'r--')
-        plt.plot(range(int(args.epochs)), training_errors, 'b-')
-
-        plt.legend(['Training Loss', 'Training error'])
-        plt.xlabel('Epoch')
-        plt.ylabel('Metric')
-        # save model
-        plt.show()
-
-    
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

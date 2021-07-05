@@ -7,6 +7,7 @@ import random
 import torch 
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data import random_split
+import shutil
 
 '''Split dataset into train/test in preparation for apnea detection model'''
 
@@ -57,11 +58,13 @@ class ApneaDataset(Dataset):
         neg_path = os.path.join(path, "negative")
         data, label, files = [], [], []
 
+    
         pos_files = os.listdir(pos_path)
         neg_files = os.listdir(neg_path) 
 
-        # check timesteps
-        self.timesteps = len(pos_files[0])
+        # get number of timesteps
+        first_pos_file = os.path.join(pos_path, pos_files[0])
+        self.timesteps = len(open(first_pos_file, 'r').readlines())
 
         # store file labels 
         map = {}
@@ -70,8 +73,21 @@ class ApneaDataset(Dataset):
         for file in neg_files:
             map[file] = 0
 
-        print(f'Number of positive files: {len(pos_files)}')
-        print(f'Number of negative files: {len(neg_files)}')
+        '''' Downsampling if needed, for class balancing '''
+        num_pos_files = len(pos_files)
+        num_neg_files = len(neg_files)
+
+        print(f'Number of positive files: {num_pos_files}')
+        print(f'Number of negative files: {num_neg_files}')
+
+        # Downsampling 
+        if num_pos_files > num_neg_files:
+            pos_files = random.sample(pos_files, num_neg_files)
+        else:
+            neg_files = random.sample(neg_files, num_pos_files)
+
+        print(f'Downsampled to {num_pos_files} files')
+
 
 
         # Randomly shuffle files 
@@ -95,7 +111,7 @@ class ApneaDataset(Dataset):
 class ApneaDataloader(DataLoader):
     def __init__(self, root, dataset, apnea_type, excerpt, batch_size):
         self.dataset = ApneaDataset(root, dataset, apnea_type, excerpt)
-        self.test_frac = 0.3
+        self.test_frac = 0.4
         self.batch_size = batch_size
         self.train_data, self.test_data = self.dataset.get_splits(self.test_frac)
 
@@ -127,3 +143,9 @@ if __name__ == "__main__":
     # print('label: ', label)
     
     # print('file', file.shape)
+
+''' Helper function to create directory '''
+def init_dir(path): 
+    if os.path.isdir(path): shutil.rmtree(path)
+    if not os.path.isdir(path):
+        os.makedirs(path)
