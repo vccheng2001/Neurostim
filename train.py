@@ -17,7 +17,10 @@ import argparse
 from datetime import datetime
 from scipy.stats import zscore
 np.set_printoptions(suppress=True) # don't use scientific notation
-# import wandb
+
+# logger 
+import wandb
+from wandb import init, log, join 
 
 class Model:
     def __init__(self, root_dir=".",
@@ -67,6 +70,8 @@ class Model:
                          output_size=output_dim).double()
         self.model.to(self.device)
 
+        wandb.watch(self.model, log_freq=10)
+
         # Loss
         self.criterion = nn.CrossEntropyLoss() # WithLogitsLoss()
 
@@ -104,7 +109,8 @@ class Model:
                 loss = self.criterion(pred, label)
                 
                 train_loss += loss.item()
-                
+                wandb.log({"train_loss": loss.item()})
+
                 pred_bin = torch.argmax(pred, dim=1)
                 # print('Train Label: ', label.shape, label)
                 # print('Train Pred:', pred_bin.shape, pred_bin)
@@ -164,19 +170,21 @@ class Model:
 
                 loss = self.criterion(pred, label)
 
-                test_losses += [loss.item()]
+                test_losses += [loss.item()]                
+                wandb.log({"test_loss": loss.item()})
 
                 pred_bin = torch.argmax(pred, dim=1)
 
-                print('Test Label: ', label.shape, label)
-                print('Test Pred: ', pred_bin.shape, pred_bin)
+                # print('Test Label: ', label.shape, label)
+                # print('Test Pred: ', pred_bin.shape, pred_bin)
 
                 errs = torch.count_nonzero(pred_bin - label)
 
                 err_rate = errs/len(pred_bin)
 
                 test_errors.append(err_rate)
-                
+                wandb.log({"test_error": err_rate})
+
                 print(f"batch #{n_batch} loss: {loss.item()}, acc: {1-err_rate}")
 
             self.avg_test_error = np.mean(test_errors)

@@ -75,7 +75,7 @@ class OnsetDetection():
         self.sequence_dir = f"{self.data_dir}/{self.dataset}/postprocessing/excerpt{self.excerpt}/"
         # default parameters 
         self.seconds_before_apnea = 10
-        self.seconds_after_apnea = 10
+        self.seconds_after_apnea = 5
         self.window_size_seconds = 10 # sliding window # seconds
         
 
@@ -156,7 +156,8 @@ class OnsetDetection():
         df = pd.read_csv(self.in_file, delimiter=',')
 
         # uncomment if using subset of signal 
-        # df = df.iloc[20000*self.sample_rate:30000*self.sample_rate]
+        # df = df.iloc[19000*self.sample_rate:25000*self.sample_rate]
+# 
 
         df["Value"] = zscore(df["Value"])
         df['Binary_Value'] = np.where(abs(df['Value']) >= (onset_threshold * self.scale_factor), 1, 0)

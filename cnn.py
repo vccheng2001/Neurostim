@@ -112,7 +112,7 @@ class CNN(nn.Module):
 
         print('-------classification layer-------------')
 
-        self.fc1 = nn.Linear(1944, 512)
+        self.fc1 = nn.Linear(1392, 512)
         self.bn1 = nn.BatchNorm1d(512)
         self.relu1 = nn.ReLU()
 
@@ -122,7 +122,7 @@ class CNN(nn.Module):
 
         self.dropout = nn.Dropout(p=0.1)
         self.fc3 = nn.Linear(128, self.output_size) 
-        self.softmax = nn.Softmax()
+        self.softmax = nn.Softmax(dim=-1)
 
 
     

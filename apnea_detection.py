@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import plotly
 from plotly.subplots import make_subplots
 
+import wandb 
+
 '''
 Program to run end-to-end onset detection (non-GUI)
 To view args: python3 apnea_detection.py -h 
@@ -14,6 +16,11 @@ Example command: python3 apnea_detection.py -d dreams -a osa -ex 1 -sr 8 -sc 1 -
 '''
 def main(args):
     
+    thresh = 0.3
+    args.thresh = thresh
+
+    config = args
+    wandb.init(project="apnea_detection", config=config)
     print('********************************')
     print(f'****  Dataset: {args.dataset}  ****')
     print(f'****  Apnea type: {args.apnea_type}  ****')
@@ -21,6 +28,7 @@ def main(args):
     print(f'****  Sample rate: {args.sample_rate}  ****')
     print(f'****  Scale factor: {args.scale_factor}  ****')
     print('*********************************')
+
 
     # visualize original data
     od = OnsetDetection(root_dir=".",
@@ -35,7 +43,7 @@ def main(args):
     fig = od.visualize()
     print('----------------Plot detected onset, nononset events ------------------')
 
-    thresh = 0.3
+
     onset_fig, onset_times, nononset_fig, nononset_times = od.annotate_events(thresh)
     fig = make_subplots(rows=2, cols=1)
 
@@ -44,7 +52,7 @@ def main(args):
     for i in range(len(nononset_fig['data'])):
         fig.add_trace(nononset_fig['data'][i], row=2, col=1)
 
-    fig.show()
+    # fig.show()
 
     if args.full:
         print('----------------Output onset events--------------------')
@@ -53,7 +61,6 @@ def main(args):
 
         print('----------------Train and test -------------------')
 
-        config = None
         model = Model(root_dir=args.root_dir, 
                      dataset=args.dataset,
                      apnea_type=args.apnea_type,
