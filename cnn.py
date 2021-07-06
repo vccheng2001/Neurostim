@@ -53,7 +53,7 @@ class CNN(nn.Module):
              
                 nn.BatchNorm1d(128),
 
-                nn.MaxPool1d(kernel_size=2, stride=2),
+                # nn.MaxPool1d(kernel_size=2, stride=2),
 
                 nn.Flatten()
         )
@@ -112,7 +112,7 @@ class CNN(nn.Module):
 
         print('-------classification layer-------------')
 
-        self.fc1 = nn.Linear(1392, 512)
+        self.fc1 = nn.Linear(1525, 512)
         self.bn1 = nn.BatchNorm1d(512)
         self.relu1 = nn.ReLU()
 

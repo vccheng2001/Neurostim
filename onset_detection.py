@@ -160,7 +160,7 @@ class OnsetDetection():
 # 
 
         df["Value"] = zscore(df["Value"])
-        df['Binary_Value'] = np.where(abs(df['Value']) >= (onset_threshold * self.scale_factor), 1, 0)
+        df['Binary_Value'] = np.where(abs(df['Value']) >= (onset_threshold), 1, 0)
         df["Rolling_Mean"] = df["Value"].rolling(self.sample_rate*10).mean()
 
         # df["EWM"] = df["Value"].ewm(self.sample_rate).mean()
@@ -180,7 +180,7 @@ class OnsetDetection():
         fig.add_trace(fig_rolling_mean['data'][0], row=2, col=1)
         fig.add_trace(fig_binary_value['data'][0], row=3, col=1)
 
-        fig.show()
+        # fig.show()
 
         # convert to binary list 
         bin_list = df['Binary_Value'].tolist()
