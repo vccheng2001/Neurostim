@@ -69,9 +69,12 @@ class Model:
                         #   output_size=output_size).double()
         self.model = CNN(input_size=input_size, \
                          output_size=output_size).double()
+        
+        # self.model.load_state_dict(torch.load(self.save_model_path))
         self.model.to(self.device)
 
-        wandb.watch(self.model, log_freq=10)
+        if self.config is not None:
+            wandb.watch(self.model, log_freq=10)
 
         # Loss
         self.criterion = nn.CrossEntropyLoss() # WithLogitsLoss()
@@ -131,8 +134,9 @@ class Model:
 
             epoch_loss = np.mean(batch_losses)
             epoch_errs = np.mean(batch_errors) 
-            wandb.log({"train_loss": epoch_loss})
-            wandb.log({"train_errors": epoch_errs})
+            if self.config is not None:
+                wandb.log({"train_loss": epoch_loss})
+                wandb.log({"train_errors": epoch_errs})
 
             # append training loss, errors for each epoch 
             self.train_losses.append(epoch_loss)
@@ -152,6 +156,8 @@ class Model:
                     loss = self.criterion(pred, label)
                     batch_val_losses += [loss.item()]
                     pred_bin = torch.argmax(pred, dim=1)
+                    # print('pred bin', pred_bin)
+                    # print('label', label)
                     errs = torch.count_nonzero(pred_bin - label)
                     err_rate = errs/len(pred_bin)
                     batch_val_errors += [err_rate]
@@ -159,8 +165,9 @@ class Model:
         
                 epoch_val_loss = np.mean(batch_val_losses)
                 epoch_val_errs = np.mean(batch_val_errors) 
-                wandb.log({"val_loss": epoch_val_loss})
-                wandb.log({"val_errors": epoch_val_errs})
+                if self.config is not None:
+                    wandb.log({"val_loss": epoch_val_loss})
+                    wandb.log({"val_errors": epoch_val_errs})
 
                 # append val loss, errors for each epoch 
                 self.val_losses.append(epoch_val_loss)
@@ -186,7 +193,7 @@ class Model:
         if save_model:
             
             print("Saving to... ", self.save_model_path)
-            torch.save(self.model.state_dict(), self.save_model_path)
+            torch.save(self.model.state_dict(), "base_model.ckpt") # self.save_model_path)
 
         print('Finished training')
         

@@ -11,26 +11,26 @@ import shutil
 
 '''Split dataset into train/test in preparation for apnea detection model'''
 
+timesteps = {'dreams':120, 'patchAllisterW':120, 'patchJeff':120}
 class ApneaDataset(Dataset):
     # load the dataset
     def __init__(self, root, dataset, apnea_type, excerpt):
         # load the csv file as a dataframe
-        print('root', root)
-        print(os.getcwd())
         self.root = root
         self.dataset = dataset
         self.apnea_type = apnea_type
         self.excerpt = excerpt
-        self.timesteps = None
+        self.timesteps = timesteps[self.dataset]
         self.path = f"{root}{dataset}/postprocessing/excerpt{excerpt}"
         self.data, self.label, self.files = self.build_data(self.path)
 
     def __len__(self):
         return len(self.data)
 
+    
     ''' retrieve one sample '''
     def __getitem__(self, idx):
-        seq = (self.data[idx])[:self.timesteps]
+        seq = self.data[idx]
         label = self.label[idx]
         file = self.files[idx]
         return seq, label, file
@@ -58,10 +58,6 @@ class ApneaDataset(Dataset):
         pos_files = os.listdir(pos_path)
         neg_files = os.listdir(neg_path) 
 
-        # get number of timesteps
-        first_pos_file = os.path.join(pos_path, pos_files[0])
-        self.timesteps = len(open(first_pos_file, 'r').readlines())
-        print('Timesteps:', self.timesteps)
         # store file labels 
         map = {}
         for file in pos_files:
@@ -78,7 +74,7 @@ class ApneaDataset(Dataset):
         if num_pos_files > num_neg_files * 2:
             print('Downsampling pos files')
             pos_files = random.sample(pos_files, num_neg_files * 2)
-        if num_neg_files  > num_pos_files * 2:
+        elif num_neg_files  > num_pos_files * 2:
             print('Downsampling neg files')
             neg_files = random.sample(neg_files, num_pos_files * 2)
 
@@ -96,6 +92,7 @@ class ApneaDataset(Dataset):
             else:
                 f = os.path.join(neg_path, file)
             arr = np.loadtxt(f,delimiter="\n", dtype=np.float64)
+
             if arr.shape[0] >=  self.timesteps:
                 arr = arr[:self.timesteps]
                 data.append(np.expand_dims(arr,-1))

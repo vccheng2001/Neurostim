@@ -112,7 +112,7 @@ class CNN(nn.Module):
 
         print('-------classification layer-------------')
 
-        self.fc1 = nn.Linear(1525, 512)
+        self.fc1 = nn.Linear(1520, 512)
         self.bn1 = nn.BatchNorm1d(512)
         self.relu1 = nn.ReLU()
 
