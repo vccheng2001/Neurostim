@@ -127,8 +127,10 @@ class CNN(nn.Module):
 
     
     def forward(self, inp):
+        
         inp = inp.permute(0,2,1) # permute to become (N, C, T)
         
+        B, C, T = inp.shape
         x = self.block1(inp)  
         xx = self.block2(inp)
         xxx = self.block3(inp)  

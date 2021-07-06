@@ -73,8 +73,9 @@ def main(args):
                 epochs=int(args.epochs),
                 config=config)
 
-    train_losses, val_losses, final_val_acc = model.train(save_model=False,
-                                                                plot_loss=False)
+    train_losses, val_losses, final_val_acc = model.train(save_model=True,
+                                                                plot_loss=False,
+                                                                retrain=args.retrain)
 
     wandb.finish()
 
@@ -92,9 +93,16 @@ if __name__ == "__main__":
     parser.add_argument("-th","--threshold",       help="flatline detection threshold")
     parser.add_argument("-p", "--preprocess",  default=False,  help="only train/test, no need to extract flatline/create + and - files", action='store_true')
     parser.add_argument("-l", "--logger",  default=False,   help="log run", action='store_true')
+    parser.add_argument("-re", "--retrain",  default=False,   help="retrain", action='store_true')
 
 
     # parse args 
     args = parser.parse_args()
 
     main(args)
+
+
+'''
+retrain, no log, use box: python3 apnea_detection.py -d dreams -a osa -ex 3Box -sr 8 -sc 1  -b 64 -ep 20 -r 
+
+'''

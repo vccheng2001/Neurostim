@@ -114,8 +114,14 @@ class ApneaDataloader(DataLoader):
         self.train_data, self.val_data = self.dataset.get_splits(self.test_frac)
 
     def get_data(self):
-        self.train_loader = DataLoader(self.train_data, batch_size=self.batch_size, shuffle=True)
-        self.val_loader = DataLoader(self.val_data, batch_size=self.batch_size, shuffle=False)
+        self.train_loader = DataLoader(self.train_data,
+                                       batch_size=self.batch_size,
+                                       shuffle=True,
+                                       drop_last=False)
+        self.val_loader = DataLoader(self.val_data,
+                                     batch_size=self.batch_size,
+                                     shuffle=False,
+                                     drop_last=False)
         return self.train_loader, self.val_loader
 
 

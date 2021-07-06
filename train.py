@@ -50,13 +50,19 @@ class Model:
         self.save_model_root = os.path.join(self.root_dir, "saved_models/")
 
         # dataset 
-        self.data = ApneaDataloader(self.data_root,self.dataset,self.apnea_type,self.excerpt, self.batch_size)
+        self.data = ApneaDataloader(self.data_root, 
+                                    self.dataset,
+                                    self.apnea_type,
+                                    self.excerpt,
+                                    self.batch_size)
         self.train_loader, self.val_loader = self.data.get_data()
 
         self.num_train = len(self.data.train_data)
         self.num_val = len(self.data.val_data)
         print('Train dataset size: ', self.num_train)
         print('Validation dataset size: ', self.num_val)
+
+        self.base_model_path = "base_model.ckpt"
 
         
         # Model 
@@ -94,13 +100,17 @@ class Model:
             os.makedirs(self.save_base_path)
         self.save_model_path = self.save_base_path + ".ckpt"
 
-    def train(self, save_model=False, plot_loss=False):
+    def train(self, save_model=False, plot_loss=False, retrain=False):
         self.model.train()
         self.train_losses = []
         self.train_errors = []
 
         self.val_losses = []
         self.val_errors = []
+
+        if retrain:
+            print('Retraining, loading params')
+            self.model.load_state_dict(torch.load(self.base_model_path))
 
         for epoch in range(self.epochs):
             print(f"Epoch #{epoch}")
@@ -191,9 +201,13 @@ class Model:
             plt.show()
 
         if save_model:
-            
-            print("Saving to... ", self.save_model_path)
-            torch.save(self.model.state_dict(), "base_model.ckpt") # self.save_model_path)
+
+            if retrain:
+                print("Retrain, saving to base model... ", self.base_model_path)
+                torch.save(self.model.state_dict(), self.base_model_path)
+            else:
+                print("Saving to... ", self.save_model_path)
+                torch.save(self.model.state_dict(), self.save_model_path)
 
         print('Finished training')
         
