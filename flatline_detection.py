@@ -5,8 +5,81 @@ import matplotlib.pyplot as plt
 import csv
 import shutil
 from datetime import datetime
+from scipy import signal
 import argparse 
 
+'''
+Program to annotate apnea events
+1. Identify flatline areas and identify value for flatline
+2. Annotate flatline apnea events 
+3. Output to positive, negative sequences 
+'''
+
+pd.set_option("display.max_rows", 2000, "display.max_columns", 2000)
+plt.rcParams["figure.figsize"] = [20, 6]  # width, height
+#samplingFrequency   = 400
+
+# directories 
+ROOT_DIR = os.getcwd() 
+DATA_DIR = os.path.join(ROOT_DIR, "data")
+INFO_DIR = os.path.join(ROOT_DIR, "info")
+
+
+# DATASET = "mit"
+# APNEA_TYPE = apnea_type
+# EXCERPT = 37
+# SAMPLE_RATE= 10
+# SCALE_FACTOR = 100
+
+# preset parameters 
+FLATLINE_THRESHOLD = 40
+SECONDS_BEFORE_APNEA = 10
+SECONDS_AFTER_APNEA = 5
+
+def main():
+    # detect flatline events
+    # unnorm_flatline_times, unnorm_nonflatline_times = annotate_signal(unnorm_file)
+    norm_flatline_times, norm_nonflatline_times   = annotate_signal(norm_file, scale_factor=SCALE_FACTOR, norm=True)
+
+    # writes detected flatline events to output file 
+    # output_flatline_files(unnorm_flatline_times, unnorm_out_file)
+    output_flatline_files(norm_flatline_times, norm_out_file)
+
+
+    # create positive, negative sequence files for training 
+    # output_pos_neg_seq(sequence_dir, unnorm_file, unnorm_flatline_times, unnorm_nonflatline_times)
+    output_pos_neg_seq(sequence_dir, norm_file, norm_flatline_times, norm_nonflatline_times)
+
+
+'''
+Creates positive, negative sequences
+@param sequence_dir: directory to store pos/neg sequences
+       flatline_times: list of [start, end] times 
+       file: csv file containing time, signal value
+'''
+def output_pos_neg_seq(sequence_dir, file, flatline_times, nonflatline_times): 
+    # initialize directories 
+    init_dir(sequence_dir)
+    pos_dir = sequence_dir + "positive/"
+    neg_dir = sequence_dir + "negative/"
+    init_dir(pos_dir)
+    init_dir(neg_dir)
+
+    # write positive sequences, one file for each flatline apnea event
+    df = pd.read_csv(file, delimiter=',')
+    for start_time, end_time  in flatline_times:
+
+        out_file = f'{start_time}.txt'
+        try:
+            # get starting, ending indices to slice 
+            start_idx = df.index[df["Time"] == round(start_time - SAMPLE_RATE * SECONDS_BEFORE_APNEA, 3)][0]
+            end_idx =   df.index[df["Time"] == round(start_time +  SAMPLE_RATE * SECONDS_AFTER_APNEA, 3)][0]
+            # print(f'Creating positive sequence from timestep {start_idx} to {end_idx} ')
+
+            # slice from <SECONDS_BEFORE_APNEA> sec before apnea to <SECONDS_AFTER_APNEA> sec after
+            # write to csv files
+            df.iloc[start_idx:end_idx,  df.columns.get_loc('Value')].to_csv(pos_dir + out_file,\
+                                                index=False, header=False, float_format='%.3f')
 
 # plot
 import plotly
@@ -252,7 +325,6 @@ class FlatlineDetection():
         self.flatline_times = flatline_times
         self.nonflatline_times = nonflatline_times
         return flatline_fig, flatline_times, nonflatline_fig, nonflatline_times
-
 
 ''' Helper function to create directory '''
 def init_dir(path): 
