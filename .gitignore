@@ -11,4 +11,6 @@ saved_models/
 runs/
 experiments/*
 results/*
-wandb/*
+wandb
+__pycache__
+results
