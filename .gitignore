@@ -11,3 +11,4 @@ saved_models/
 runs/
 experiments/*
 results/*
+wandb/*
