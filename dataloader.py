@@ -11,17 +11,18 @@ import shutil
 
 '''Split dataset into train/test in preparation for apnea detection model'''
 
-timesteps = {'dreams':120, 'patchAllisterW':120, 'patchJeff':120}
 class ApneaDataset(Dataset):
     # load the dataset
-    def __init__(self, root, dataset, apnea_type, excerpt):
+    def __init__(self, cfg):
         # load the csv file as a dataframe
-        self.root = root
-        self.dataset = dataset
-        self.apnea_type = apnea_type
-        self.excerpt = excerpt
-        self.timesteps = timesteps[self.dataset]
-        self.path = f"{root}{dataset}/postprocessing/excerpt{excerpt}"
+        self.root_dir = cfg.root_dir
+        self.data_root = os.path.join(self.root_dir, "data/")
+        self.dataset = cfg.dataset
+        self.apnea_type = cfg.apnea_type
+        self.excerpt = cfg.excerpt
+        self.test_frac = float(cfg.test_frac)
+        self.timesteps = cfg.sample_rate * (int(cfg.seconds_before_apnea) + int(cfg.seconds_after_apnea))
+        self.path = f"{self.data_root}{cfg.dataset}/postprocessing/excerpt{cfg.excerpt}"
         self.data, self.label, self.files = self.build_data(self.path)
 
     def __len__(self):
@@ -37,7 +38,7 @@ class ApneaDataset(Dataset):
 
 
     ''' split data into train, test'''
-    def get_splits(self, test_frac=0.2):
+    def get_splits(self, test_frac):
         # determine sizes
         test_size = round(test_frac * len(self.data))
         train_size = len(self.data) - test_size
@@ -65,7 +66,7 @@ class ApneaDataset(Dataset):
         for file in neg_files:
             map[file] = 0
 
-        '''' Downsampling if needed, for class balancing '''
+        '''' Downsampling to same size if needed, for class balancing '''
         num_pos_files = len(pos_files)
         num_neg_files = len(neg_files)
 
@@ -73,13 +74,10 @@ class ApneaDataset(Dataset):
         # Downsampling 
         if num_pos_files > num_neg_files * 2:
             print('Downsampling pos files')
-            pos_files = random.sample(pos_files, num_neg_files * 2)
+            pos_files = random.sample(pos_files, num_neg_files)
         elif num_neg_files  > num_pos_files * 2:
             print('Downsampling neg files')
-            neg_files = random.sample(neg_files, num_pos_files * 2)
-
-
-
+            neg_files = random.sample(neg_files, num_pos_files)
 
         # Randomly shuffle files 
         all_files = pos_files + neg_files
@@ -99,19 +97,16 @@ class ApneaDataset(Dataset):
                 label.append(map[file])
                 files.append(file)
 
-
-
         print(f'Number of positive files: {len(pos_files)}')
         print(f'Number of negative files: {len(neg_files)}')
 
         return data, label, files
 
 class ApneaDataloader(DataLoader):
-    def __init__(self, root, dataset, apnea_type, excerpt, batch_size):
-        self.dataset = ApneaDataset(root, dataset, apnea_type, excerpt)
-        self.test_frac = 0.2
-        self.batch_size = batch_size
-        self.train_data, self.val_data = self.dataset.get_splits(self.test_frac)
+    def __init__(self, cfg):
+        self.dataset = ApneaDataset(cfg)
+        self.batch_size = int(cfg.batch_size)
+        self.train_data, self.val_data = self.dataset.get_splits(cfg.test_frac)
 
     def get_data(self):
         self.train_loader = DataLoader(self.train_data,
@@ -126,24 +121,6 @@ class ApneaDataloader(DataLoader):
 
 
 
-
-# prepare the data
-if __name__ == "__main__":
-    pass
-    # root= "data/"
-    # dataset = "dreams"
-    # apnea_type="osa"
-    # batch_size=128
-    # excerpt=1
-    # dataset = ApneaDataset(root,dataset,apnea_type,excerpt)
-    # train_loader = DataLoader(dataset=dataset,\
-    #                              batch_size=batch_size,\
-    #                              shuffle=True)
-    # seq, label, file = iter(train_loader).next()
-    # print('seq: ', seq.shape)
-    # print('label: ', label)
-    
-    # print('file', file.shape)
 
 ''' Helper function to create directory '''
 def init_dir(path): 

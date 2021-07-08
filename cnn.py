@@ -2,8 +2,6 @@ import torch
 import torch.nn as nn
 from torch.nn.modules.batchnorm import BatchNorm1d
 
-device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-
 
 class GaussianNoise():
     
@@ -21,8 +19,8 @@ class ConvBlock(nn.Module):
 
         self.gn = GaussianNoise(mean=0, std=0.01)
         self.conv = nn.Conv1d(in_channels, out_channels, kernel_size, stride, padding)
-        self.bn = nn.BatchNorm2d(out_channels)
-        self.act = nn.ReLU()
+        self.bn = nn.BatchNorm1d(out_channels)
+        self.act = nn.PReLU()
         
     def forward(self, x):
         x = self.gn.add_noise(x)
@@ -53,7 +51,7 @@ class CNN(nn.Module):
              
                 nn.BatchNorm1d(128),
 
-                # nn.MaxPool1d(kernel_size=2, stride=2),
+                # nn.MaxPool1d(kernel_size=4, stride=2),
 
                 nn.Flatten()
         )
@@ -61,36 +59,39 @@ class CNN(nn.Module):
         print('-------block 2---------------')
 
         self.block2 = nn.Sequential(
+
                 nn.Conv1d(in_channels=input_size,
                 out_channels=64,
                 kernel_size=32,
-                stride=12,
+                stride=2,
                 bias=True),
              
                 nn.BatchNorm1d(64),
 
-                nn.MaxPool1d(kernel_size=2, stride=2),
+                nn.MaxPool1d(kernel_size=4, stride=2),
 
                 nn.Flatten()
         )
         print('-------block 3---------------')
 
         self.block3 = nn.Sequential(
+
                 nn.Conv1d(in_channels=input_size,
-                out_channels=32,
-                kernel_size=16,
-                stride=4,
+                out_channels=8,
+                kernel_size=4,
+                stride=2,
                 bias=True),
              
-                nn.BatchNorm1d(32),
+                nn.BatchNorm1d(8),
 
-                nn.MaxPool1d(kernel_size=2, stride=2),
+                nn.MaxPool1d(kernel_size=4, stride=2),
 
                 nn.Flatten()
         )
         
         print('-------block 4---------------')
         self.block4 = nn.Sequential(
+
                 nn.Conv1d(in_channels=input_size,
                 out_channels=4,
                 kernel_size=2,
@@ -99,7 +100,7 @@ class CNN(nn.Module):
              
                 nn.BatchNorm1d(4),
 
-                nn.MaxPool1d(kernel_size=2, stride=1),
+                nn.MaxPool1d(kernel_size=4, stride=2),
 
                 nn.Flatten()
         )
@@ -112,7 +113,7 @@ class CNN(nn.Module):
 
         print('-------classification layer-------------')
 
-        self.fc1 = nn.Linear(1520, 512)
+        self.fc1 = nn.Linear(1208, 512)
         self.bn1 = nn.BatchNorm1d(512)
         self.relu1 = nn.ReLU()
 
@@ -120,7 +121,7 @@ class CNN(nn.Module):
         self.bn2 = nn.BatchNorm1d(128)
         self.relu2 = nn.ReLU()
 
-        self.dropout = nn.Dropout(p=0.1)
+        # self.dropout = nn.Dropout(p=0.1)
         self.fc3 = nn.Linear(128, self.output_size) 
         self.softmax = nn.Softmax(dim=-1)
 
@@ -131,10 +132,12 @@ class CNN(nn.Module):
         inp = inp.permute(0,2,1) # permute to become (N, C, T)
         
         B, C, T = inp.shape
+
         x = self.block1(inp)  
         xx = self.block2(inp)
         xxx = self.block3(inp)  
         xxxx = self.block4(inp)
+        
         flat_inp = self.flatten(inp)
         x = torch.cat([x, xx, xxx, xxxx, flat_inp], -1)
 
@@ -142,12 +145,12 @@ class CNN(nn.Module):
         x = self.fc1(x)
         x = self.bn1(x)
         x = self.relu1(x)
-        x = self.dropout(x)
+        # x = self.dropout(x)
 
         x = self.fc2(x)
         x = self.bn2(x)
         x = self.relu2(x)
-        x = self.dropout(x)
+        # x = self.dropout(x)
 
         out = self.fc3(x)
         out = self.softmax(out)

@@ -1,108 +1,200 @@
 import argparse
-from onset_detection import OnsetDetection
+from random import sample
+
+# Modules
+from onset_extraction import OnsetExtraction
 from train import Model
+
+# Torch
+import torch 
+
+# Graphing
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import plotly
 from plotly.subplots import make_subplots
 
+# Logger
 import wandb 
 
 '''
-Program to run end-to-end onset detection (non-GUI)
-To view args: python3 apnea_detection.py -h 
-Example command: python3 apnea_detection.py -d dreams -a osa -ex 1 -sr 8 -sc 1 -b 64 -ep 10
+Main program to run end-to-end apnea detection
+
+HOW TO RUN PROGRAM: 
+---------------------------------------------------
+1) To run from command line/using argparser, change the default 
+   arguments as desired. 
+
+    python3 apnea_detection.py -h/--help to view default arguments
+
+    Example: To run Dreams OSA Excerpt 3:
+    python3 apnea_detection.py -d dreams -a osa -ex 3 
+
+2) To run using default config:
+    Instantiate DefaultConfig() class,
+    then pass it into the main function.
+
+        cfg = DefaultConfig()
+        main(cfg)
+
 '''
-def main(args):
-    print('********************************')
-    print(f'****  Dataset: {args.dataset}  ****')
-    print(f'****  Apnea type: {args.apnea_type}  ****')
-    print(f'****  Excerpt: {args.excerpt}  ****')
-    print(f'****  Sample rate: {args.sample_rate}  ****')
-    print(f'****  Scale factor: {args.scale_factor}  ****')
-    print('*********************************')
 
-    if args.logger: 
-        config = args
-        tags = [args.dataset, args.apnea_type, args.excerpt]
-        if 'Box' in args.excerpt:
+def main(cfg):
+    print('***************************************')
+    print(f'****        Dataset: {cfg.dataset}   ****')
+    print(f'****        Apnea type: {cfg.apnea_type}    ****')
+    print(f'****        Excerpt: {cfg.excerpt}         ****')
+    print(f'****        Sample rate: {cfg.sample_rate}     ****')
+    print('***************************************')
+
+    ''' ------------------- Setting up experiment-------------------------'''
+    if cfg.logger: 
+        # Tags
+        tags = [cfg.dataset, cfg.apnea_type, cfg.excerpt]
+        if 'Box' in cfg.excerpt:
             tags.append('box')
-        wandb.init(project="apnea_detection", 
-                config=config,
-                tags=tags)
 
-   
-        wandb.run.name = f'{args.dataset}_{args.apnea_type}_{args.excerpt}'
+        # Initialize project
+        wandb.init(entity="neurostim", 
+                  project="apnea_detection", 
+                  config=cfg,
+                  tags=tags)
+
+        # Initialize run
+        wandb.run.name = f'{cfg.dataset}_{cfg.apnea_type}_{cfg.excerpt}'
         wandb.run.save()
-    else:
-        config = None
-
-    if args.preprocess: 
-        # visualize original data
-        od = OnsetDetection(root_dir=".",
-                            dataset=args.dataset,
-                            apnea_type=args.apnea_type,
-                            excerpt= args.excerpt,
-                            sample_rate=args.sample_rate,
-                            scale_factor=args.scale_factor)
-
-        # print('----------------Visualize original signal--------------------')
-
-        # fig = od.visualize()
-        # print('----------------Plot detected onset, nononset events ------------------')
 
 
-        onset_fig, onset_times, nononset_fig, nononset_times = od.annotate_events(float(args.threshold))
-        # fig = make_subplots(rows=2, cols=1)
+    print('------------- Onset Detection----------------')
+    if not cfg.skip_preprocess: 
 
-        # for i in range(len(onset_fig['data'])):
-        #     fig.add_trace(onset_fig['data'][i], row=1, col=1)
-        # for i in range(len(nononset_fig['data'])):
-        #     fig.add_trace(nononset_fig['data'][i], row=2, col=1)
-        # fig.show()
-        od.output_apnea_files(onset_times, nononset_times)
+        oe = OnsetExtraction(cfg=cfg)
+                          
+        # Normalize 
+        oe.normalize(slope_threshold=float(cfg.slope_threshold),
+                     scale_factor_high=int(cfg.scale_factor_high),
+                     scale_factor_low=int(cfg.scale_factor_low))
 
-    print('----------------Train and test -------------------')
+        # Extract onset, non-onset  events
+        oe.extract_onset_events(threshold=float(cfg.threshold),
+                                 plot=True)
 
-    model = Model(root_dir=args.root_dir, 
-                dataset=args.dataset,
-                apnea_type=args.apnea_type,
-                excerpt=args.excerpt,
-                batch_size=int(args.batch_size),
-                epochs=int(args.epochs),
-                config=config)
+        # Save positive/negative sequences to files
+        oe.write_output_files()
 
-    train_losses, val_losses, final_val_acc = model.train(save_model=True,
-                                                                plot_loss=False,
-                                                                retrain=args.retrain)
+    
+
+    print('---------------- Train and test -------------------')
+
+    model = Model(cfg=cfg)
+
+    model.train(save_model=False, 
+                plot_loss=True, 
+                retrain=cfg.retrain)
+
+    print('---------- Finished, Saving experiment ------------')
 
     wandb.finish()
 
 
+''' To use this config, instantiate an object of this class and 
+    change any desired parameters and simply run the program. For example: 
+    
+    cfg = DefaultConfig()
+    main(cfg)
+        
+'''
+
+class DefaultConfig():
+    def __init__(self, root_dir=".",
+                       dataset="dreams",
+                       apnea_type="osa",
+                       excerpt=1,
+                       sample_rate=8,
+
+                       test_frac=0.2,
+
+                       skip_preprocess=False,
+                       slope_threshold=10,
+                       scale_factor_high=10,
+                       scale_factor_low=0.1,
+                       threshold=0.5,
+                       seconds_before_apnea=10,
+                       seconds_after_apnea=5,
+
+                       model_type="cnn",
+                       retrain=False,
+                       learning_rate=0.001,
+                       batch_size=64,
+                       epochs=15,
+                       
+                       logger=False,
+                       results_file="results.csv",
+                       base_model_path="base_model.ckpt"): 
+
+        self.root_dir = root_dir
+        self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
+        self.dataset = dataset
+        self.apnea_type = apnea_type
+        self.excerpt = excerpt
+        self.sample_rate = sample_rate
+        
+        self.test_frac = test_frac
+
+        self.skip_preprocess = skip_preprocess
+        self.slope_threshold = slope_threshold
+        self.scale_factor_high = scale_factor_high
+        self.scale_factor_low = scale_factor_low
+        self.threshold = threshold
+        self.seconds_before_apnea = seconds_before_apnea
+        self.seconds_after_apnea = seconds_after_apnea
+
+        self.model_type = model_type
+        self.retrain = retrain
+        self.learning_rate = learning_rate
+        self.batch_size = batch_size
+        self.epochs = epochs
+
+        self.logger = logger
+        self.results_file = results_file
+        self.base_model_path = base_model_path
+
+# # Initialize cfg 
+# cfg = DefaultConfig()
+# main(cfg)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-r", "--root_dir",    default=".", help="root directory (parent folder of data/)")
-    parser.add_argument("-d", "--dataset",    default="dreams", help="dataset (dreams, dublin, or mit)")
-    parser.add_argument("-a", "--apnea_type", default="osa",    help="type of apnea (osa, osahs, or all)")
-    parser.add_argument("-ex","--excerpt",        help="excerpt number to use")
-    parser.add_argument("-sr","--sample_rate",    default=8,        help="number of samples per second")
-    parser.add_argument("-sc","--scale_factor",    default=1,        help="scale factor for normalization")
-    parser.add_argument("-b","--batch_size",    default=16,        help="batch size")    
-    parser.add_argument("-ep","--epochs",    default=15,        help="num epochs to train")
-    parser.add_argument("-th","--threshold",       help="flatline detection threshold")
-    parser.add_argument("-p", "--preprocess",  default=False,  help="only train/test, no need to extract flatline/create + and - files", action='store_true')
-    parser.add_argument("-l", "--logger",  default=False,   help="log run", action='store_true')
-    parser.add_argument("-re", "--retrain",  default=False,   help="retrain", action='store_true')
+    parser.add_argument("-r", "--root_dir",   default=".",      help="root directory (where source files are stored)")
+    parser.add_argument("-d", "--dataset",    default="dreams", help="dataset (dreams, dublin, mit, patch..)")
+    parser.add_argument("-a", "--apnea_type", default="osa",    help="type of apnea (osa)")
+    parser.add_argument("-ex","--excerpt",    default=1,        help="excerpt number to use")
+    parser.add_argument("-tf","--test_frac",default=0.2,        help="ratio of dataset to hold out for testing")
+   
+    parser.add_argument("-sr","--sample_rate",default=8,        help="number of samples per second")
 
+    parser.add_argument("-sp", "--skip_preprocess",  default=False,  help="user can specify to skip normalization/onset extraction step", action='store_true')
+    parser.add_argument("-st","--slope_threshold",   default=10,     help="slope threshold for nonlinear normalization")
+    parser.add_argument("-sfh","--scale_factor_high",default=10,     help="high scale factor for nonlinear normalization")
+    parser.add_argument("-sfl","--scale_factor_low", default=0.1,    help="lowscale factor for nonlinear normalization")
+    parser.add_argument("-th","--threshold",         default=0.5,    help="flatline detection threshold")
+    parser.add_argument("-sba","--seconds_before_apnea", default=10,    help="number of seconds before flatline starts")
+    parser.add_argument("-saa","--seconds_after_apnea",  default=5,    help="number of seconds after flatline starts")
+       
+    parser.add_argument("-m", "--model_type",       default="cnn",   help="model type")
+    parser.add_argument("-re", "--retrain",         default=False,   help="retrain", action='store_true')
+    parser.add_argument("-lr", "--learning_rate",  default=0.001,    help="learning rate")
+    parser.add_argument("-b","--batch_size",        default=64,      help="batch size")    
+    parser.add_argument("-ep","--epochs",           default=15,      help="number of epochs to train")
+
+    parser.add_argument("-l", "--logger",           default=False,   help="log run", action='store_true')
+    parser.add_argument("-rf", "--results_file",    default="results.csv",   help="results file (csv)")
+    parser.add_argument("-bm", "--base_model_path", default="base_model.ckpt",   help="base model path")
 
     # parse args 
-    args = parser.parse_args()
+    cfg = parser.parse_args()
 
-    main(args)
-
-
-'''
-retrain, no log, use box: python3 apnea_detection.py -d dreams -a osa -ex 3Box -sr 8 -sc 1  -b 64 -ep 20 -r 
-
-'''
+    main(cfg)

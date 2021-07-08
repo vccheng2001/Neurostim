@@ -9,3 +9,5 @@ predictions/
 saved_models/
 *.ckpt
 runs/
+experiments/*
+results/*

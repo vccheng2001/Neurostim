@@ -1,24 +1,29 @@
-# End-to-End Sleep Apnea Prediction using LSTM 
+# End-to-End Sleep Apnea Prediction using Deep Learning
 ***
-This is a end-to-end apnea detection program using LSTM and built in to a Django webapp, which performs the following steps:
+This is a end-to-end apnea detection program using a deep learning model
+which performs the following steps:
 Preprocessing:
-   - data normalization, visualization, flatline extraction to generate dataset for training/testing
-Training/Inference
+   - data normalization, visualization, onset events extraction
+Model Training, Testing
 
 ## File structure
 ```
-data/:  includes all dataset files (note: raw data files must be of the form <dataset>_<apnea_type>_ex<excerpt>_sr<sample_rate>_sc<scale_factor>.txt
+data/:  includes all dataset files (note: raw data files must be of the form <dataset>_<apnea_type>_ex<excerpt>_sr<sample_rate>.txt
 info/:  metadata
 neurostim/: django webapp 
-flatline_detection.py: flatline detection algorithm
-lstm.py: ML model and training/testing
+onset_extraction.py: extracts onset/non-onset events, generate +/- sequences
+apnea_detection.py: main program to run pipeline 
+cnn.py: defines 1D CNN model
+lstm.py: defines LSTM model 
+train.py: performs model training/evaluation 
+dataloader.py: builds dataloader from dataset, train-test split
 ```
 
  * data/
    * dreams/
        * preprocessing/
           * excerpt1/
-            * dreams_osa_ex1_sr8_sc1.txt
+            * dreams_osa_ex1_sr8.csv
           * excerpt2/
        * postprocessing/
           * excerpt1/
@@ -33,7 +38,7 @@ lstm.py: ML model and training/testing
  * README.md
 
 - Datasets supported: mit, dreams, ucddb, patch
-- types of apnea: obstructive sleep apnea (osa), hypopnea (osahs)
+- types of apnea: obstructive sleep apnea (osa)
 
 
 
@@ -41,15 +46,21 @@ lstm.py: ML model and training/testing
  ```bash
  git clone https://github.com/vccheng2001/Apnea-Detection-LSTM.git
  cd Apnea-Detection-LSTM/ 
- git checkout upgrade
+ git checkout upgrade_v2
  pip3 install -r requirements.txt  (install all dependencies)
  ```
+
+## Running without the webapp (updated)
  
-## Running the webapp locally
+ python3 apnea_detection.py 
+
+ (Configure DefaultConfig() in the same file to change default parameters)
+
+## Running with the webapp (not updated as of 7/8)
  ```bash
 
- cd apnea_detection
  cd neurostim
+ cd apnea_detection
  python3 manage.py runserver 
  
  ```
