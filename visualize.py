@@ -36,7 +36,7 @@ import os
 
 
 sample_rate = 8
-path = "data/dreams/postprocessing/excerpt3/positive/"
+path = "data/dreams/postprocessing/excerpt7/positive/"
 files = os.listdir(path)
 start = 0
 while True:

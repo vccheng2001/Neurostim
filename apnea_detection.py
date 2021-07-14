@@ -90,6 +90,7 @@ def main(cfg):
         oe.extract_onset_events(threshold=float(cfg.threshold))
 
         oe.plot_extracted_events()
+        exit(0)
         # Save positive/negative sequences to files
         oe.write_output_files()
 

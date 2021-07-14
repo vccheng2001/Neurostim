@@ -367,7 +367,8 @@ class OnsetExtraction():
 
         if self.logger:
             wandb.log({"extracted_events": fig})
-        # fig.show()
+        fig.update_layout(title=f'{self.dataset}-{self.excerpt}')
+        fig.show()
 # 
 
 

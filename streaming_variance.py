@@ -33,7 +33,7 @@ ys = []
 
 cfg = DefaultConfig(dataset = "dreams",
                     apnea_type = "osa",
-                    excerpt = "6",
+                    excerpt = "8",
                     sample_rate = 8,
                     root_dir = ".",
                     seconds_before_apnea = 10,
@@ -43,11 +43,11 @@ cfg = DefaultConfig(dataset = "dreams",
 base_path = f"{cfg.root_dir}/data/{cfg.dataset}/preprocessing/excerpt{cfg.excerpt}/{cfg.dataset}_{cfg.apnea_type}_ex{cfg.excerpt}_sr{cfg.sample_rate}"
 in_file     = f"{base_path}_sc1.csv"
 df = pd.read_csv(in_file, delimiter=",")
-df = df.iloc[30000:40000]
+df = df.iloc[151200:161200]
 
 model = CNN(input_size=1,output_size=2)
 model = model.double()
-model.load_state_dict(torch.load("dreams_model.ckpt"))
+model.load_state_dict(torch.load("dreams_model_new.ckpt"))
 model.eval()
 
 
@@ -82,8 +82,8 @@ def animate(i, xs, ys):
    
 
 
-    if (i+1) %max_size == 0:
-
+    if i > max_size and (i) % 8 == 0:
+    # if (i) > max_size:
         # window = zscore(window)
 
         # array, 
@@ -97,9 +97,9 @@ def animate(i, xs, ys):
         # print('inp', inp.shape, inp)
         pred = model(inp)
         pred_bin = torch.argmax(pred, dim=1)[0]
-        print(f'#{i}, pred: {pred}, pred_bin: {pred_bin}')
-        if pred_bin == 1:
-            print('********ALERT*******')
+        print(f'Onset probability: {pred[0,1]}')
+        if pred[0,1] > 0.99:
+            print('******** detected apnea event *******')
             ax.clear()
             ax.plot(xs, ys, 'r')
         else:
@@ -156,5 +156,5 @@ onset_times = []
 # Set up plot to call animate() function periodically
 ax.xaxis.set_major_formatter(FormatStrFormatter('%.3f'))
 
-ani = animation.FuncAnimation(fig, animate, fargs=(xs, ys), interval=1)
+ani = animation.FuncAnimation(fig, animate, fargs=(xs, ys),interval=0.025)
 plt.show()
