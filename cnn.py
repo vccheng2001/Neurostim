@@ -33,8 +33,8 @@ class ConvBlock(nn.Module):
 
 class CNN(nn.Module):
 
-    def __init__(self, input_size, 
-                       output_size):
+    def __init__(self, input_size=None, 
+                       output_size=None):
         super(CNN, self).__init__()
         self.input_size = input_size
         self.output_size = output_size
@@ -112,8 +112,9 @@ class CNN(nn.Module):
 
 
         print('-------classification layer-------------')
-
-        self.fc1 = nn.Linear(1208, 512)
+        self.fc2176 = nn.Linear(2176, 512)
+        self.fc1208 = nn.Linear(1208, 512)
+        # self.fc1 = nn.Linear(1208, 512)
         self.bn1 = nn.BatchNorm1d(512)
         self.relu1 = nn.ReLU()
 
@@ -137,12 +138,15 @@ class CNN(nn.Module):
         xx = self.block2(inp)
         xxx = self.block3(inp)  
         xxxx = self.block4(inp)
-        
+
         flat_inp = self.flatten(inp)
         x = torch.cat([x, xx, xxx, xxxx, flat_inp], -1)
 
         # classification layer 
-        x = self.fc1(x)
+        try:
+            x = self.fc2176(x)
+        except:
+            x = self.fc1208(x)
         x = self.bn1(x)
         x = self.relu1(x)
         # x = self.dropout(x)
