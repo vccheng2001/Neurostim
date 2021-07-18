@@ -8,11 +8,11 @@ from datetime import datetime
 import argparse 
 import re
 from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import MinMaxScaler, RobustScaler
 
-from statsmodels.graphics import tsaplots
 
 import wandb
-# from wandb import log
+from wandb import log
 # Torch
 import torch 
 
@@ -26,6 +26,7 @@ from plotly.offline import plot
 import plotly.graph_objects as go
 import plotly.express as px
 pd.options.plotting.backend = "plotly"
+
 # Stats 
 from scipy.stats import zscore
 from sklearn.linear_model import LinearRegression
@@ -49,14 +50,10 @@ def main(cfg):
                         scale_factor_high=int(cfg.scale_factor_high),
                         scale_factor_low=int(cfg.scale_factor_low))
         
-
-        # oe.df["Value"] = zscore(oe.df["Value"])
-
     oe.plot_extracted_events()
 
     # Extract onset, non-onset  events
-    oe.extract_onset_events(threshold=float(cfg.threshold),
-                                plot=True)
+    oe.extract_onset_events()
 
     # Save positive/negative sequences to files
     oe.write_output_files()
@@ -80,17 +77,19 @@ class OnsetExtraction():
         self.scale_factor_low = int(cfg.scale_factor_high)
 
 
+        # define directories 
         self.root_dir = cfg.root_dir
         self.data_dir = os.path.join(self.root_dir, "data")
         self.info_dir = os.path.join(self.root_dir, "info")
         self.negative_dir = cfg.negative_dir
         self.positive_dir = cfg.positive_dir
 
+        # raw input file with columns [Time, Value]
         self.base_path = f"{self.data_dir}/{self.dataset}/preprocessing/excerpt{self.excerpt}/{self.dataset}_{self.apnea_type}_ex{self.excerpt}_sr{self.sample_rate}"
-        # path to unnormalized, normalized files 
         self.in_file = f"{self.base_path}_sc1.csv"
         self.df = pd.read_csv(self.in_file, delimiter=',')
-        # self.df = self.df.iloc[20000:60000]
+
+        self.df["Orig_Value"] = self.df["Value"]
 
         # output file to list all extracted onset events
         self.out_file = f"{self.base_path}_sc1_onset_events.txt"
@@ -124,12 +123,10 @@ class OnsetExtraction():
         self.scale_factor_high = scale_factor_high
         self.scale_factor_low = scale_factor_low
         
-        self.df["Orig_Value"] = self.df["Value"]
-        # Calculated slope between every adjacent two values
-        self.df["Slope"] = self.df["Value"].rolling(window=2, min_periods=1).apply(lambda x: (x[-1] - x[0]) / 2,  raw=True)
-        # print('slope', self.df["Slope"])
+        # Calculated slope across every second
+        self.df["Slope"] = self.df["Value"].rolling(window=8, min_periods=1).apply(lambda x: (x[-1] - x[0]) / 2,  raw=True)
         # Get scale factor based on calculated slope
-        self.df["Scale_Factor"] = np.where(self.df["Slope"] > self.slope_threshold, self.scale_factor_high, self.scale_factor_low)
+        self.df["Scale_Factor"] = np.where(abs(self.df["Slope"]) > self.slope_threshold, self.scale_factor_high, self.scale_factor_low)
         # Scale nonlinearly
         self.df["Value"] *= self.df["Scale_Factor"] # (self.df["Value"] ** 2) * np.sign(self.df["Value"])#*  self.df["Scale_Factor"]
         # Return normalized signal
@@ -140,30 +137,21 @@ class OnsetExtraction():
 
 
     ''' Extracts onset events'''
-    def extract_onset_events(self, threshold):
+    def extract_onset_events(self):
 
-        self.df["Value"] = zscore(self.df["Value"])
 
         self.onset_times = []
         self.flatline_times = []
-        self.flatline_value = self.find_flatline_value();
-
-        self.df["Norm_Value"] = (self.df["Value"] - self.flatline_value)
-
-        norm_fig = self.visualize(value_field="Norm_Value")
-
-        # norm_fig.show()
+        flatline_values = []
 
 
-        print('self.flatline_value', self.flatline_value)
-        self.df['Binary_Value'] = np.where(abs(self.df['Norm_Value']) >= 0.1, 1, 0)
-        bin_list = self.df['Binary_Value'].tolist()
-        bin_str = ''.join(str(int(x)) for x in bin_list)
+        self.df["Variance"] = self.df["Value"].rolling(window=80, min_periods=1).apply(lambda x: np.var(x), raw=True)
+        self.df['Binary_Var'] = np.where(abs(self.df['Variance']) >= 0.1, 1, 0)
+        bin_list = self.df['Binary_Var'].tolist()
+        bin_str = ''.join(str(int(x)) for x in bin_list)        
 
-
-
-
-        for x in re.finditer(r"(0)\1{" + re.escape(f"{int(self.sample_rate)* 10}") + r",}", bin_str):
+        # Search positive sequences at least 10 seconds
+        for x in re.finditer(r"11111111(0)\1{" + re.escape(f"{int(self.sample_rate)* 10}") + r",}", bin_str):
 
             start_idx = x.start()
             end_idx = x.end()
@@ -174,16 +162,16 @@ class OnsetExtraction():
 
             # Start of Onset:  10 seconds before flatline
             # End of Onset: 5 seconds after after flatline
-           
             start_time = self.df.iloc[start_idx-(self.seconds_before_apnea * self.sample_rate)]['Time']        
             end_time = self.df.iloc[start_idx + (self.seconds_after_apnea * self.sample_rate)]['Time'] 
 
             # Start, End of flatline
-            start_flatline = self.df.iloc[start_idx]["Time"]
+            start_flatline = self.df.iloc[start_idx+self.sample_rate]["Time"]
             end_flatline = self.df.iloc[end_idx-1]["Time"]
+
             # get average flatline value from center of onset event 
             avg_flatline_idx = int((start_idx+end_idx)/2)
-            avg_flatline_value = self.df.iloc[avg_flatline_idx]['Value']
+            avg_flatline_value = self.df.iloc[avg_flatline_idx]['Value'] # VIVI
 
             # append onset event 
             self.onset_times.append([start_time,end_time])
@@ -191,18 +179,26 @@ class OnsetExtraction():
             # append flatline event
             # NOTE: GOES FROM START ONSET ---> END OF FLATLINE
             self.flatline_times.append([start_time, end_flatline])
+
+
             # append avg flatline value
+            flatline_values.append(avg_flatline_value)
+
+        self.flatline_value = np.mean(flatline_values)
+
+
+        ''' Extract non-onset (regular breathing) events'''
 
         self.nononset_times = []
 
-        self.df["Variance"] = self.df["Value"].rolling(window=4, min_periods=1).apply(lambda x: np.var(x), raw=True)
-        print(self.df["Variance"])
-        self.df['Binary_Var'] = np.where(abs(self.df['Variance']) >= 0.0001, 1, 0)
+        self.df["Variance"] = self.df["Value"].rolling(window=80, min_periods=1).apply(lambda x: np.var(x), raw=True)
+        self.df['Binary_Var'] = np.where(abs(self.df['Variance']) >= 0.25, 1, 0)
         bin_list = self.df['Binary_Var'].tolist()
-
-        # print(bin_list)
         bin_str = ''.join(str(int(x)) for x in bin_list)
-        for x in re.finditer(r"(1)\1{" + re.escape(f"{int(self.sample_rate)* 15}") + r",}", bin_str):
+
+
+        # Search for high variance events
+        for x in re.finditer(r"(1)\1{" + re.escape(f"{int(self.sample_rate) * int(self.seconds_before_apnea) + int(self.seconds_after_apnea)}") + r",}", bin_str):
 
             start_idx = x.start()
             end_idx = x.end()
@@ -212,41 +208,9 @@ class OnsetExtraction():
                 continue
             start_time = self.df.iloc[start_idx-1]['Time']        
             end_time = self.df.iloc[end_idx-1]['Time'] 
-            # append onset event 
+            # append non-onset event 
             self.nononset_times.append([start_time,end_time])
 
-           
-        # # Get Non-onset events
-        # self.nononset_times = []
-
-
-        # # Search for non-onset events of at least <total_sec> length 
-        # total_sec = self.seconds_before_apnea + self.seconds_after_apnea
-
-        # prev_end_time = None
-        # for next_start_time, next_end_time in self.flatline_times:
-        #     if prev_end_time is None: 
-        #         prev_end_time = next_end_time
-        #         continue
-
-        #     # Number of segments 
-          
-        #     nononset_end = next_start_time
-
-        #     # Get mean of segment 
-        #     # next_start_idx = self.df.index[self.df.Time == next_start_time][0]
-        #     # prev_end_idx   = self.df.index[self.df.Time == prev_end_time][0]
-
-        #     # mean =  abs(self.df["Value"].iloc[int(prev_end_idx):int(next_start_idx)]).mean() 
-        #     # if mean > threshold:
-
-        #     while nononset_end - total_sec > prev_end_time:
-        #         # print('n', next_start_time)
-        #         self.nononset_times.append([nononset_end-total_sec, nononset_end])
-        #         nononset_end -= total_sec
-        #         # break
-        #     # Update prev end time 
-        #     prev_end_time = next_end_time
 
         num_pos_files = len(self.onset_times)
         num_neg_files = len(self.nononset_times)
@@ -254,33 +218,13 @@ class OnsetExtraction():
         print(f"Extracted {num_neg_files } non-onset events")
 
 
- 
-
-
-
-
-
-
-
-
-    def find_flatline_value(self):
-        print('------Extracting onset events------')
-
-        # Convert to binary]
-         # difference of values 1 sec apart (thus SAMPLE_RATE timesteps)
-        # self.df['Diff'] = self.df['Value'].diff(1)
-        # self.df['Binary_Value'] = np.where(abs(self.df['Diff']) >= 0.1, 1, 0)
-        # bin_list = self.df['Binary_Value'].tolist()
-        # bin_str = ''.join(str(int(x)) for x in bin_list)
-
+    # Find flatline value of df[<col>]
+    def find_flatline_value(self, col):
         
-
-        # ''' Method 2: Variance '''
-        self.df["Variance"] = self.df["Value"].rolling(window=2, min_periods=1).apply(lambda x: np.var(x), raw=True)
-        self.df['Binary_Var'] = np.where(abs(self.df['Variance']) >= 0.1, 1, 0)
+        self.df["Variance"] = self.df[col].rolling(window=80, min_periods=1).apply(lambda x: np.var(x), raw=True)
+        self.df['Binary_Var'] = np.where(abs(self.df['Variance']) >= 0.5, 1, 0)
         bin_list = self.df['Binary_Var'].tolist()
         bin_str = ''.join(str(int(x)) for x in bin_list)
-
 
         '''----------------Extracting onset events----------------------'''
         flatline_values = []
@@ -290,23 +234,15 @@ class OnsetExtraction():
             start_idx = x.start() 
             end_idx   = x.end()
             avg_flatline_idx = int((start_idx+end_idx)/2)
-            avg_flatline_value = self.df.iloc[avg_flatline_idx]['Value']
+            avg_flatline_value = self.df.iloc[avg_flatline_idx][col]
             flatline_values.append(avg_flatline_value)
             # break
-            
         try:
             flatline_value = np.mean(flatline_values)
         except ZeroDivisionError:
-            print("No onset events found!")
+            print("No flatline values found!")
             exit(-1)
         return flatline_value
-
-     
-
-
-
-            
-
 
     
     def plot_extracted_events(self):
@@ -365,8 +301,8 @@ class OnsetExtraction():
         for i in range(len(self.nononset_fig['data'])):
             fig.add_trace(self.nononset_fig['data'][i], row=3, col=1)
 
-        if self.logger:
-            wandb.log({"extracted_events": fig})
+        # if self.logger:
+        #     wandb.log({"extracted_events": fig})
         fig.update_layout(title=f'{self.dataset}-{self.excerpt}')
         fig.show()
 # 
@@ -395,36 +331,39 @@ class OnsetExtraction():
         # initialize directories 
         init_dir(self.sequence_dir)
 
+        # init positive dir
         if self.positive_dir:
-            # DO NOT OVERWRITE 
             pos_dir = self.positive_dir 
             if not os.path.isdir(pos_dir): os.mkdir(pos_dir)
         else:
             pos_dir = self.sequence_dir + "positive/"
             init_dir(pos_dir)
 
-
-        # write positive sequences, one file for each onset apnea event
-        df = pd.read_csv(self.in_file, delimiter=',')
+        flatline_value = self.find_flatline_value("Orig_Value")
+        self.df["ZScore"] = (self.df["Orig_Value"] - flatline_value) / self.df["Orig_Value"].std()
+        self.df["ZScoreNorm"] = self.df["ZScore"].clip(lower=-5, upper=5)
         
+        fig = self.visualize(value_field='ZScoreNorm')
+        fig.update_layout(title=f'{self.dataset}-{self.excerpt}-ZScoreNorm')
+   
         # apnea start time
         for start_time, end_time in self.onset_times:
             # File name is the start time 
             pos_out_file = f'{start_time}.txt'
             try:
                 # slice from <SECONDS_BEFORE_APNEA> sec before apnea to <SECONDS_AFTER_APNEA> sec after
-                start_idx = df.index[df["Time"] == round(start_time -  self.seconds_before_apnea, 3)][0]
-                end_idx =   df.index[df["Time"] == round(start_time +  self.seconds_after_apnea, 3)][0]
+                start_idx = self.df.index[self.df["Time"] == round(start_time, 3)][0]
+                end_idx =   self.df.index[self.df["Time"] == round(end_time, 3)][0]
 
-                # Write to positive file 
-                df.iloc[start_idx:end_idx,  df.columns.get_loc('Value')].to_csv(pos_dir + pos_out_file,\
+                # Write to positive file VIVIVIVIVI
+                self.df.iloc[start_idx:end_idx,  self.df.columns.get_loc('ZScoreNorm')].to_csv(pos_dir + pos_out_file,\
                                                     index=False, header=False, float_format='%.3f')
             except:
                 continue
 
 
-        '''
-
+        
+        # Initialize neg dir 
         if self.negative_dir:
             neg_dir = self.negative_dir
             if not os.path.isdir(neg_dir): os.mkdir(neg_dir)
@@ -437,21 +376,20 @@ class OnsetExtraction():
             
             # File name is start time 
             neg_out_file = f'{start_time}.txt' 
-            print('writing:', neg_out_file)
 
             try:
                 # slice for <SECONDS_BEFORE_APNEA + SECONDS_AFTER_APNEA> seconds 
-                start_idx = df.index[df["Time"] == round(start_time, 3)][0]
-                end_idx   = df.index[df["Time"] == round(start_time + \
+                start_idx = self.df.index[self.df["Time"] == round(start_time, 3)][0]
+                end_idx   = self.df.index[self.df["Time"] == round(start_time + \
                             (self.seconds_before_apnea + self.seconds_after_apnea), 3)][0]
 
                 # Write to negative file 
-                df.iloc[start_idx:end_idx,  df.columns.get_loc('Value')].to_csv(neg_dir + neg_out_file,\
+                self.df.iloc[start_idx:end_idx,  self.df.columns.get_loc('ZScoreNorm')].to_csv(neg_dir + neg_out_file,\
                                                 index=False, header=False, float_format='%.3f')
             except:
                 continue
 
-        '''
+ 
 
 
 ''' Helper function to create directory '''
