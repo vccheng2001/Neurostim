@@ -713,3 +713,15 @@ time,dataset,apnea_type,excerpt,file,test_acc,n_train,n_test,epochs
 07/17/2021 20:21 PM,patchAllisterW,osa,17,results/results.csv,0.9125000014901161,350,87,10
 07/17/2021 20:23 PM,patchAllisterW,osa,15,results/results.csv,0.5357142984867096,232,58,10
 07/17/2021 20:24 PM,patchAllisterW,osa,12,results/results.csv,0.9166666641831398,215,54,10
+07/18/2021 11:29 AM,patchAllisterW,osa,15,results/results.csv,0.4107142686843872,232,58,10
+07/18/2021 11:31 AM,patchAllisterW,osa,15,results/results.csv,0.7678571492433548,232,58,10
+07/18/2021 11:35 AM,patchAllisterW,osa,15,results/results.csv,0.921875,255,64,10
+07/18/2021 11:50 AM,patchAllisterW,osa,15,results/results.csv,0.546875,255,64,10
+07/18/2021 11:51 AM,patchAllisterW,osa,17,results/results.csv,0.8409090936183929,351,88,10
+07/18/2021 11:52 AM,patchAllisterW,osa,12,results/results.csv,0.9583333320915699,217,54,10
+07/18/2021 11:53 AM,patchAllisterW,osa,12,results/results.csv,0.9134615361690521,54,215,10
+07/18/2021 11:54 AM,patchAllisterW,osa,13,results/results.csv,0.9301470592617989,69,276,10
+07/18/2021 11:57 AM,dreams,osa,1,results/results.csv,0.7053571343421936,175,117,10
+07/18/2021 11:58 AM,dreams,osa,3,results/results.csv,0.9078947380185127,457,305,10
+07/18/2021 12:04 PM,dreams,osa,3,results/results.csv,0.9069148972630501,381,381,10
+07/18/2021 12:15 PM,dreams,osa,5,results/results.csv,0.8820422515273094,571,570,10

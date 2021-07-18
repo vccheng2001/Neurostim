@@ -78,6 +78,12 @@ class Model:
 
         self.model.to(self.device)
 
+        # Load pre-trained model to continue training 
+        if self.cfg.retrain:
+            print('Retraining, loading params')
+            self.model.load_state_dict(torch.load(self.base_model_file))
+
+
         # Logger 
 
         if self.logger: # logger must be True
@@ -100,10 +106,9 @@ class Model:
         self.save_model_path = self.save_base_path + ".ckpt"
 
 
+
     # Training/Validation 
-    def train(self, save_model=False, 
-                    plot_loss=False, 
-                    retrain=False):
+    def train(self, plot_loss=False):
 
         self.model.train()
 
@@ -113,61 +118,58 @@ class Model:
         self.val_losses = []
         self.val_errors = []
 
-        # Load pre-trained model to continue training 
-        if self.cfg.retrain:
-            print('Retraining, loading params')
-            self.model.load_state_dict(torch.load(self.base_model_file))
+        for epoch in range(self.epochs): 
 
-        # for epoch in range(self.epochs):
-        #     print(f"Epoch #{epoch}")
-        #     batch_losses = []
-        #     batch_errors = []
+
+            print(f"Epoch #{epoch}")
+            batch_losses = []
+            batch_errors = []
             
 
-        #     ''' -------------Train-------------'''
-        #     for n_batch, (seq, label, file) in enumerate(self.train_loader):
+            ''' -------------Train-------------'''
+            for n_batch, (seq, label, file) in enumerate(self.train_loader):
                     
-        #         self.optim.zero_grad()
+                self.optim.zero_grad()
 
-        #         # feed sequence of dim (B, T, C) through model, outputs a prediction
-        #         pred = self.model(seq)
-        #         # binary prediction
-        #         pred_bin = torch.argmax(pred, dim=1)
+                # feed sequence of dim (B, T, C) through model, outputs a prediction
+                pred = self.model(seq)
+                # binary prediction
+                pred_bin = torch.argmax(pred, dim=1)
 
-        #         # compute loss using prediction, label
-        #         loss = self.criterion(pred, label)
-        #         batch_losses += [loss.item()]
+                # compute loss using prediction, label
+                loss = self.criterion(pred, label)
+                batch_losses += [loss.item()]
 
             
 
-        #         # calculate error rate across current batch 
-        #         errs = torch.count_nonzero(pred_bin - label)
-        #         err_rate = errs/len(pred_bin)
-        #         batch_errors += [err_rate]
+                # calculate error rate across current batch 
+                errs = torch.count_nonzero(pred_bin - label)
+                err_rate = errs/len(pred_bin)
+                batch_errors += [err_rate]
                 
-        #         loss.backward()
-        #         self.optim.step() 
+                loss.backward()
+                self.optim.step() 
 
-        #         # self.scheduler.step(loss)
+                # self.scheduler.step(loss)
 
-        #         # Log 
-        #         if (n_batch) % 5 == 0:
-        #             print("Epoch: [{}/{}], Batch: {}, Loss: {}, Acc: {}".format(
-        #                 epoch, self.epochs, n_batch, loss.item(), 1-err_rate))
+                # Log 
+                if (n_batch) % 5 == 0:
+                    print("Epoch: [{}/{}], Batch: {}, Loss: {}, Acc: {}".format(
+                        epoch, self.epochs, n_batch, loss.item(), 1-err_rate))
 
 
-        #     epoch_loss = np.mean(batch_losses)
-        #     epoch_errs = np.mean(batch_errors) 
+            epoch_loss = np.mean(batch_losses)
+            epoch_errs = np.mean(batch_errors) 
 
-        #     # Log epoch train loss, errors 
-        #     if self.logger:
-        #         wandb.log({"train_loss": epoch_loss})
-        #         wandb.log({"train_errors": epoch_errs})
+            # Log epoch train loss, errors 
+            if self.logger:
+                wandb.log({"train_loss": epoch_loss})
+                wandb.log({"train_errors": epoch_errs})
 
-        #     self.train_losses.append(epoch_loss)
-        #     self.train_errors.append(epoch_errs)
+            self.train_losses.append(epoch_loss)
+            self.train_errors.append(epoch_errs)
 
-        #     print(f"Train Loss for epoch {epoch}: {epoch_loss}")
+            print(f"Train Loss for epoch {epoch}: {epoch_loss}")
         
 
         #     '''------------------Validation--------------'''
@@ -223,6 +225,7 @@ class Model:
         #     # plt.savefig(self.save_base_path + ".png")
         #     plt.show()
 
+    def test(self):
         self.model.eval()
         test_losses = []
         test_errors = []
@@ -252,7 +255,7 @@ class Model:
                 test_errors.append(err_rate)
 
                 if self.logger:
-                    wandb.log({"batch_val_loss": loss.item()})
+                    wandb.log({"batch_val_loss": test_loss.item()})
                     wandb.log({"batch_val_errors": err_rate})
 
                 # np.savetxt(f"{self.save_base_path}test_batch{n_batch}.csv", np.hstack((pred.detach().numpy(), pred_bin.detach().numpy(), label.detach().numpy())), delimiter=",")
@@ -284,7 +287,7 @@ class Model:
             plt.ylabel('Signal Value')
             plt.show()
 
-        if save_model:
+        if self.cfg.save_model:
 
             if self.cfg.retrain:
                 print("Retrain, saving to base model... ", self.base_model_file)
@@ -293,7 +296,7 @@ class Model:
                 print("Saving to... ", self.base_model_file)
                 torch.save(self.model.state_dict(),self.base_model_file)
 
-        print('Finished training')
+        print('Finished')
         
 
 
@@ -318,4 +321,3 @@ class Model:
                             'n_test': self.num_val,
                             'epochs': self.epochs})
 
-        return self.train_losses, self.val_losses, self.final_test_acc

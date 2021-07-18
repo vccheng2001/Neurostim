@@ -36,7 +36,7 @@ cfg = DefaultConfig(logger=None, dataset = "patchAllisterW",
                     root_dir = ".",
                     seconds_before_apnea = 10,
                     seconds_after_apnea = 5,
-                    base_model_path="patch_model.ckpt")
+                    base_model_path="patch_model_11.ckpt")
 
 ''' (2) ---------------------load input file to read -----------------------------'''
 base_path = f"{cfg.root_dir}/data/{cfg.dataset}/preprocessing/excerpt{cfg.excerpt}/{cfg.dataset}_{cfg.apnea_type}_ex{cfg.excerpt}_sr{cfg.sample_rate}"

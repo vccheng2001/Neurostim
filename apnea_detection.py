@@ -52,7 +52,7 @@ def main(cfg):
     ''' --------------- Setting up experiment and logger-------------------------'''
     if cfg.logger: 
         # Add desired tags to experiment
-        tags = [cfg.dataset, cfg.apnea_type, str(cfg.excerpt)]
+        tags = [cfg.dataset, cfg.apnea_type, str(cfg.excerpt), "test_on_trained_patchAllisterW11"]
         if 'Box' in str(cfg.excerpt):
             tags.append('box')
 
@@ -96,9 +96,17 @@ def main(cfg):
 
     model = Model(cfg=cfg)
 
-    model.train(save_model=cfg.save_model,
-                plot_loss=True,
-                retrain=cfg.retrain)
+    # only inference
+    if cfg.test_only:
+        print("Testing only")
+        model.test()
+    else:
+        print("Training and Testing")
+        model.train(plot_loss=True)
+        model.test()
+
+
+
 
     print('---------- Finished, Saving experiment ------------')
 
@@ -134,6 +142,7 @@ class DefaultConfig():
                        negative_dir=None,
                        positive_dir=None,
 
+                       test_only=False,
                        model_type="cnn",
                        retrain=False,
                        learning_rate=0.001,
@@ -165,6 +174,7 @@ class DefaultConfig():
         self.negative_dir = negative_dir
         self.positive_dir = positive_dir
 
+        self.test_only = test_only
         self.model_type = model_type
         self.retrain = retrain
         self.learning_rate = learning_rate
@@ -201,6 +211,7 @@ if __name__ == "__main__":
     parser.add_argument("-nd", "--negative_dir",        default=None,       help="negative directory to write files to")
     parser.add_argument("-pd", "--positive_dir",        default=None,       help="positive directory to write files to")
 
+    parser.add_argument("-t","--test_only",               default=False,         help="skips training and only performs inference", action='store_true')
     parser.add_argument("-m", "--model_type",           default="cnn",      help="model type")
     parser.add_argument("-re", "--retrain",             default=False,      help="retrain", action='store_true')
     parser.add_argument("-lr", "--learning_rate",       default=0.001,      help="learning rate")
